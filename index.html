@@ -301,57 +301,14 @@
         const AZMOOS_LON = 9.4833;
         
         // Wetterdaten laden (OpenMeteo API - kostenlos!)
-        async function loadWeatherData() {
-            try {
-                updateStatus('info', '🌐 Lade aktuelle Wetterdaten...');
-                
-                // Korrekte OpenMeteo API URL mit allen benötigten Parametern
-                const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${AZMOOS_LAT}&longitude=${AZMOOS_LON}&current=temperature_2m,relative_humidity_2m,surface_pressure&timezone=Europe/Zurich`);
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                const data = await response.json();
-                console.log('OpenMeteo Response:', data); // Debug-Ausgabe
-                
-                // Korrekte Datenstruktur für current-Parameter
-                const currentTemp = data.current.temperature_2m;
-                const currentHumidity = data.current.relative_humidity_2m;
-                const currentPressure = data.current.surface_pressure;
-                
-                weatherData = {
-                    temperature: currentTemp.toFixed(1),
-                    humidity: Math.round(currentHumidity),
-                    pressure: Math.round(currentPressure),
-                    dewpoint: calculateDewpointFromTemp(currentTemp, currentHumidity)
-                };
-                
-                document.getElementById('azTemp').textContent = weatherData.temperature;
-                document.getElementById('azHumidity').textContent = weatherData.humidity;
-                document.getElementById('azDewpoint').textContent = weatherData.dewpoint;
-                document.getElementById('azPressure').textContent = weatherData.pressure;
-                
-                updateStatus('success', '✅ Aktuelle Wetterdaten für Azmoos geladen! (OpenMeteo)');
-                
-            } catch (error) {
-                console.error('Wetter API Fehler:', error);
-                updateStatus('error', '❌ Wetterdaten nicht verfügbar: ' + error.message);
-                
-                // Fallback-Werte bei Fehler
-                weatherData = { 
-                    temperature: '--', 
-                    humidity: '--', 
-                    pressure: '--', 
-                    dewpoint: '--' 
-                };
-                
-                document.getElementById('azTemp').textContent = weatherData.temperature;
-                document.getElementById('azHumidity').textContent = weatherData.humidity;
-                document.getElementById('azDewpoint').textContent = weatherData.dewpoint;
-                document.getElementById('azPressure').textContent = weatherData.pressure;
-            }
-        }
+      async function loadWeatherData() {
+    try {
+        updateStatus('info', '🌐 Lade aktuelle Wetterdaten...');
+        // ... hier kommt der Code
+    } catch (error) {
+        // ... Fehlerbehandlung
+    }
+}
         function calculateDewpointFromTemp(temp, humidity) {
             const a = 17.27;
             const b = 237.7;
