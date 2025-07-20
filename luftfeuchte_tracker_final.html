@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💧 Luftfeuchte Tracker 1</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 10px 0;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .weather-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .weather-card {
+            background: rgba(255,255,255,0.15);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .weather-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #FFD700;
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            background: rgba(255,255,255,0.9);
+            color: #333;
+            box-sizing: border-box;
+        }
+        button {
+            background: linear-gradient(45deg, #FF6B6B, #FF8E53);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+        .success { background: rgba(76, 175, 80, 0.3); }
+        .error { background: rgba(244, 67, 54, 0.3); }
+        .info { background: rgba(33, 150, 243, 0.3); }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(255,255,255,0.9);
+            color: #333;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: rgba(102, 126, 234, 0.8);
+            color: white;
+        }
+        .firebase-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: bold;
+        }
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff4444;
+        }
+        .status-dot.connected { background: #44ff44; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💧 Luftfeuchte Tracker</h1>
+        
+        <div class="firebase-status">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="firebaseStatus">Verbindung wird hergestellt...</span>
+        </div>
+        
+        <div class="status info" id="statusMessage">
+            🔧 Firebase wird initialisiert...
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>🌤️ Aktuelle Wetterdaten - Azmoos</h2>
+        <div class="weather-grid">
+            <div class="weather-card">
+                <div>Temperatur (°C)</div>
+                <div class="weather-value" id="azTemp">-</div>
+            </div>
+            <div class="weather-card">
+                <div>Luftfeuchtigkeit (%)</div>
+                <div class="weather-value" id="azHumidity">-</div>
+            </div>
+            <div class="weather-card">
+                <div>Taupunkt (°C)</div>
+                <div class="weather-value" id="azDewpoint">-</div>
+            </div>
+            <div class="weather-card">
+                <div>Luftdruck (hPa)</div>
+                <div class="weather-value" id="azPressure">-</div>
+            </div>
+        </div>
+        <button onclick="loadWeatherData()">🔄 Wetterdaten aktualisieren</button>
+        <button onclick="useWeatherData()">📥 Wetterdaten übernehmen</button>
+    </div>
+
+    <div class="container">
+        <h2>📝 Neue Messung hinzufügen</h2>
+        <div class="form-group">
+            <label>Datum (automatisch)</label>
+            <input type="date" id="date" readonly>
+        </div>
+        <div class="form-group">
+            <label>Uhrzeit (automatisch)</label>
+            <input type="time" id="time" readonly>
+        </div>
+        <div class="form-group">
+            <label>Luftfeuchtigkeit (%)</label>
+            <input type="number" id="humidity" min="0" max="100" step="0.1" placeholder="z.B. 65.5">
+        </div>
+        <div class="form-group">
+            <label>Temperatur (°C)</label>
+            <input type="number" id="temperature" step="0.1" placeholder="z.B. 21.5">
+        </div>
+        <div class="form-group">
+            <label>Taupunkt (°C) - Automatisch berechnet</label>
+            <input type="number" id="dewpoint" step="0.1" readonly>
+        </div>
+        <div class="form-group">
+            <label>Messstandort</label>
+            <select id="location">
+                <option value="">Bitte wählen...</option>
+                <option value="🪚 Werkraum">🪚 Werkraum</option>
+                <option value="⚙️ CNC">⚙️ CNC</option>
+                <option value="📦 Lager">📦 Lager</option>
+                <option value="🚪 Durchgang Werkraum">🚪 Durchgang Werkraum</option>
+                <option value="🚪 Durchgang Lager">🚪 Durchgang Lager</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Notizen (optional)</label>
+            <textarea id="notes" rows="3" placeholder="Besondere Umstände, Beobachtungen..."></textarea>
+        </div>
+        <button onclick="saveData()">💾 Daten speichern</button>
+        <button onclick="calculateDewpoint()">🧮 Taupunkt neu berechnen</button>
+    </div>
+
+    <div class="container">
+        <h2>📊 Gespeicherte Messungen</h2>
+        <div id="dataStats">
+            <strong id="entryCount">0</strong> Einträge | 
+            Ø Luftfeuchtigkeit: <strong id="avgHumidity">-</strong>%
+        </div>
+        <div style="overflow-x: auto; margin-top: 20px;">
+            <table id="dataTable">
+                <thead>
+                    <tr>
+                        <th>Datum</th>
+                        <th>Zeit</th>
+                        <th>Standort</th>
+                        <th>LF%</th>
+                        <th>T°C</th>
+                        <th>TP°C</th>
+                        <th>Az T°C</th>
+                        <th>Az LF%</th>
+                        <th>Az TP°C</th>
+                        <th>Notizen</th>
+                        <th>Aktion</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <button onclick="exportToCSV()">📤 CSV Export</button>
+        <button onclick="clearAllData()" style="background: linear-gradient(45deg, #f44336, #d32f2f);">🗑️ Alle Daten löschen</button>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+    <script>
+        // Firebase Konfiguration - DIESE WERTE MUSST DU ANPASSEN!
+        const firebaseConfig = {
+            apiKey: "AIzaSyDoaelppJWayS-DXkI7SRqXRcj_qJj9Hig",
+            authDomain: "luftfeuchte-tracker.firebaseapp.com",
+            projectId: "luftfeuchte-tracker",
+            storageBucket: "luftfeuchte-tracker.firebasestorage.app",
+            messagingSenderId: "341950652894",
+            appId: "1:341950652894:web:8563788a8c188be322fd4f"
+        };
+
+        let db;
+        let weatherData = {};
+        let measurements = [];
+
+        // Firebase initialisieren
+        function initFirebase() {
+            try {
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+                updateStatus('success', '✅ Firebase verbunden!');
+                document.getElementById('statusDot').classList.add('connected');
+                document.getElementById('firebaseStatus').textContent = 'Firebase verbunden';
+                loadMeasurements();
+            } catch (error) {
+                console.error('Firebase Fehler:', error);
+                updateStatus('error', '❌ Firebase Verbindung fehlgeschlagen: ' + error.message);
+                document.getElementById('firebaseStatus').textContent = 'Verbindung fehlgeschlagen';
+            }
+        }
+
+        // Status-Nachricht anzeigen
+        function updateStatus(type, message) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.className = `status ${type}`;
+            statusEl.textContent = message;
+            setTimeout(() => {
+                statusEl.style.display = 'none';
+            }, 5000);
+        }
+
+        // Aktuelle Zeit und Datum setzen
+        function setCurrentDateTime() {
+            const now = new Date();
+            document.getElementById('date').value = now.toISOString().split('T')[0];
+            document.getElementById('time').value = now.toTimeString().slice(0,5);
+        }
+
+        // Taupunkt berechnen
+        function calculateDewpoint() {
+            const temp = parseFloat(document.getElementById('temperature').value);
+            const humidity = parseFloat(document.getElementById('humidity').value);
+            
+            if (isNaN(temp) || isNaN(humidity)) {
+                alert('Bitte geben Sie gültige Werte für Temperatur und Luftfeuchtigkeit ein.');
+                return;
+            }
+            
+            // Magnus-Formel für Taupunkt
+            const a = 17.27;
+            const b = 237.7;
+            const alpha = ((a * temp) / (b + temp)) + Math.log(humidity / 100.0);
+            const dewpoint = (b * alpha) / (a - alpha);
+            
+            document.getElementById('dewpoint').value = dewpoint.toFixed(1);
+        }
+
+        // Automatische Taupunkt-Berechnung bei Eingabe
+        document.getElementById('temperature').addEventListener('input', calculateDewpoint);
+        document.getElementById('humidity').addEventListener('input', calculateDewpoint);
+
+        // OpenMeteo API - komplett kostenlos, keine Registrierung nötig!
+        // Koordinaten für Azmoos, Schweiz (angepasst an OpenMeteo Test-API)
+        const AZMOOS_LAT = 47.0823;
+        const AZMOOS_LON = 9.4768;
+        
+        // Wetterdaten laden (OpenMeteo API - kostenlos!)
+        async function loadWeatherData() {
+            try {
+                updateStatus('info', '🌐 Lade aktuelle Wetterdaten...');
+                
+                // Cache-Busting Parameter hinzufügen für frische Daten
+                const timestamp = new Date().getTime();
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${AZMOOS_LAT}&longitude=${AZMOOS_LON}&current=temperature_2m,relative_humidity_2m,surface_pressure&timezone=Europe/Zurich&_t=${timestamp}`;
+                
+                console.log('API URL:', url);
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('API Response:', data);
+                
+                // Wetterdaten extrahieren
+                const temperature = Math.round(data.current.temperature_2m * 10) / 10;
+                const humidity = Math.round(data.current.relative_humidity_2m);
+                const pressure = Math.round(data.current.surface_pressure);
+                const dewpoint = calculateDewpointFromTemp(temperature, humidity);
+                
+                // Wetterdaten speichern
+                weatherData = {
+                    temperature: temperature,
+                    humidity: humidity,
+                    pressure: pressure,
+                    dewpoint: dewpoint
+                };
+                
+                // UI aktualisieren
+                document.getElementById('azTemp').textContent = temperature;
+                document.getElementById('azHumidity').textContent = humidity;
+                document.getElementById('azPressure').textContent = pressure;
+                document.getElementById('azDewpoint').textContent = dewpoint;
+                
+                updateStatus('success', '✅ Wetterdaten erfolgreich geladen!');
+                
+            } catch (error) {
+                console.error('Wetter API Fehler:', error);
+                updateStatus('error', '❌ Fehler beim Laden der Wetterdaten: ' + error.message);
+                
+                // Fallback-Werte setzen
+                document.getElementById('azTemp').textContent = '--';
+                document.getElementById('azHumidity').textContent = '--';
+                document.getElementById('azPressure').textContent = '--';
+                document.getElementById('azDewpoint').textContent = '--';
+                
+                weatherData = {};
+            }
+        }
+        function calculateDewpointFromTemp(temp, humidity) {
+            const a = 17.27;
+            const b = 237.7;
+            const alpha = ((a * temp) / (b + temp)) + Math.log(humidity / 100.0);
+            const dewpoint = (b * alpha) / (a - alpha);
+            return dewpoint.toFixed(1);
+        }
+
+        // Wetterdaten in Formular übernehmen
+        function useWeatherData() {
+            if (weatherData.temperature && weatherData.temperature !== '--') {
+                document.getElementById('temperature').value = weatherData.temperature;
+                document.getElementById('humidity').value = weatherData.humidity;
+                calculateDewpoint();
+                updateStatus('success', '📥 Wetterdaten übernommen!');
+            } else {
+                updateStatus('error', '❌ Keine Wetterdaten verfügbar!');
+            }
+        }
+
+        // Daten in Firebase speichern
+        async function saveData() {
+            const data = {
+                date: document.getElementById('date').value,
+                time: document.getElementById('time').value,
+                humidity: parseFloat(document.getElementById('humidity').value),
+                temperature: parseFloat(document.getElementById('temperature').value),
+                dewpoint: parseFloat(document.getElementById('dewpoint').value),
+                location: document.getElementById('location').value,
+                notes: document.getElementById('notes').value,
+                azTemp: weatherData.temperature || '-',
+                azHumidity: weatherData.humidity || '-',
+                azDewpoint: weatherData.dewpoint || '-',
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            // Validierung
+            if (!data.date || !data.time || isNaN(data.humidity) || isNaN(data.temperature) || !data.location) {
+                updateStatus('error', '❌ Bitte füllen Sie alle Pflichtfelder aus!');
+                return;
+            }
+
+            try {
+                await db.collection('measurements').add(data);
+                updateStatus('success', '✅ Daten erfolgreich gespeichert!');
+                
+                // Formular zurücksetzen
+                document.getElementById('humidity').value = '';
+                document.getElementById('temperature').value = '';
+                document.getElementById('dewpoint').value = '';
+                document.getElementById('location').value = '';
+                document.getElementById('notes').value = '';
+                setCurrentDateTime();
+                
+                loadMeasurements();
+            } catch (error) {
+                updateStatus('error', '❌ Fehler beim Speichern: ' + error.message);
+            }
+        }
+
+        // Messungen aus Firebase laden
+        async function loadMeasurements() {
+            if (!db) return;
+            
+            try {
+                const snapshot = await db.collection('measurements').orderBy('timestamp', 'desc').get();
+                measurements = [];
+                
+                snapshot.forEach(doc => {
+                    measurements.push({ id: doc.id, ...doc.data() });
+                });
+                
+                updateTable();
+                updateStats();
+            } catch (error) {
+                updateStatus('error', '❌ Fehler beim Laden der Daten: ' + error.message);
+            }
+        }
+
+        // Tabelle aktualisieren
+        function updateTable() {
+            const tbody = document.querySelector('#dataTable tbody');
+            tbody.innerHTML = '';
+            
+            measurements.forEach(entry => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${entry.date}</td>
+                    <td>${entry.time}</td>
+                    <td>${entry.location}</td>
+                    <td>${entry.humidity}%</td>
+                    <td>${entry.temperature}°C</td>
+                    <td>${entry.dewpoint}°C</td>
+                    <td>${entry.azTemp}°C</td>
+                    <td>${entry.azHumidity}%</td>
+                    <td>${entry.azDewpoint}°C</td>
+                    <td>${entry.notes || '-'}</td>
+                    <td><button onclick="deleteMeasurement('${entry.id}')" style="background: #f44336; padding: 5px 10px;">🗑️</button></td>
+                `;
+            });
+        }
+
+        // Statistiken aktualisieren
+        function updateStats() {
+            document.getElementById('entryCount').textContent = measurements.length;
+            
+            if (measurements.length > 0) {
+                const avgHumidity = measurements.reduce((sum, entry) => sum + entry.humidity, 0) / measurements.length;
+                document.getElementById('avgHumidity').textContent = avgHumidity.toFixed(1);
+            } else {
+                document.getElementById('avgHumidity').textContent = '-';
+            }
+        }
+
+        // Messung löschen
+        async function deleteMeasurement(id) {
+            if (!confirm('Möchten Sie diese Messung wirklich löschen?')) return;
+            
+            try {
+                await db.collection('measurements').doc(id).delete();
+                updateStatus('success', '✅ Messung gelöscht!');
+                loadMeasurements();
+            } catch (error) {
+                updateStatus('error', '❌ Fehler beim Löschen: ' + error.message);
+            }
+        }
+
+        // Alle Daten löschen
+        async function clearAllData() {
+            if (!confirm('ACHTUNG: Möchten Sie wirklich ALLE Messungen löschen? Dies kann nicht rückgängig gemacht werden!')) return;
+            
+            try {
+                const batch = db.batch();
+                const snapshot = await db.collection('measurements').get();
+                
+                snapshot.forEach(doc => {
+                    batch.delete(doc.ref);
+                });
+                
+                await batch.commit();
+                updateStatus('success', '✅ Alle Daten gelöscht!');
+                loadMeasurements();
+            } catch (error) {
+                updateStatus('error', '❌ Fehler beim Löschen: ' + error.message);
+            }
+        }
+
+        // CSV Export
+        function exportToCSV() {
+            if (measurements.length === 0) {
+                updateStatus('error', '❌ Keine Daten zum Exportieren vorhanden!');
+                return;
+            }
+            
+            const headers = ['Datum', 'Zeit', 'Standort', 'Luftfeuchtigkeit%', 'Temperatur°C', 'Taupunkt°C', 'Az_Temp°C', 'Az_LF%', 'Az_TP°C', 'Notizen'];
+            const csvContent = [
+                headers.join(','),
+                ...measurements.map(entry => [
+                    entry.date,
+                    entry.time,
+                    `"${entry.location}"`,
+                    entry.humidity,
+                    entry.temperature,
+                    entry.dewpoint,
+                    entry.azTemp,
+                    entry.azHumidity,
+                    entry.azDewpoint,
+                    `"${entry.notes || ''}"`
+                ].join(','))
+            ].join('\n');
+            
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `luftfeuchte_daten_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+            
+            updateStatus('success', '✅ CSV-Datei heruntergeladen!');
+        }
+
+        // App initialisieren
+        window.addEventListener('load', () => {
+            setCurrentDateTime();
+            initFirebase();
+            loadWeatherData();
+            
+            // Datum/Zeit alle Minute aktualisieren
+            setInterval(setCurrentDateTime, 60000);
+        });
+    </script>
+</body>
+</html>
