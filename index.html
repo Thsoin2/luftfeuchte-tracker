@@ -183,7 +183,7 @@
             </select>
         </div>
         <div class="form-group">
-            <label>Messort</label>
+            <label>Entfeuchterort</label>
             <select id="messort">
                 <option value="">Bitte wählen...</option>
                 <option value="🪚 Werkraum">🪚 Werkraum</option>
@@ -214,7 +214,7 @@
                         <th>Datum</th>
                         <th>Zeit</th>
                         <th>Standort</th>
-                        <th>Messort</th>
+                        <th>Entfeuchterort</th>
                         <th>LF%</th>
                         <th>T°C</th>
                         <th>TP°C</th>
@@ -522,7 +522,7 @@
                 return;
             }
             
-            const headers = ['Datum', 'Zeit', 'Standort', 'Messort', 'Luftfeuchtigkeit%', 'Temperatur°C', 'Taupunkt°C', 'Az_Temp°C', 'Az_LF%', 'Az_TP°C', 'Notizen'];
+            const headers = ['Datum', 'Zeit', 'Standort', 'Entfeuchterort', 'Luftfeuchtigkeit%', 'Temperatur°C', 'Taupunkt°C', 'Az_Temp°C', 'Az_LF%', 'Az_TP°C', 'Notizen'];
             const csvContent = [
                 headers.join(','),
                 ...measurements.map(entry => [
