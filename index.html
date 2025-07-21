@@ -817,6 +817,8 @@
 
         // Input-Validierung und Indikator-Punkte Setup
         function setupInputValidation() {
+            console.log('Setting up input validation...');
+            
             const inputMapping = [
                 { inputId: 'temperature', dotId: 'dot1' },
                 { inputId: 'humidity', dotId: 'dot2' },
@@ -827,57 +829,98 @@
             
             function setDotColor(dotId, isValid) {
                 const dot = document.getElementById(dotId);
-                if (!dot) return;
+                if (!dot) {
+                    console.error(`Punkt mit ID ${dotId} nicht gefunden`);
+                    return;
+                }
+                
+                console.log(`Setze Punkt ${dotId} auf ${isValid ? 'grün' : 'rot'}`);
                 
                 if (isValid) {
                     dot.style.backgroundColor = 'rgba(50, 205, 50, 0.8)';
                     dot.style.transform = 'scale(1.1)';
+                    dot.classList.add('dot-green');
                 } else {
                     dot.style.backgroundColor = 'rgba(255, 100, 100, 0.6)';
                     dot.style.transform = 'scale(1.0)';
+                    dot.classList.remove('dot-green');
                 }
             }
             
             function isInputValid(inputId) {
                 const input = document.getElementById(inputId);
-                if (!input) return false;
+                if (!input) {
+                    console.error(`Input ${inputId} nicht gefunden`);
+                    return false;
+                }
                 
+                let isValid = false;
+                
+                // Für Temperatur und Luftfeuchtigkeit (Slider)
                 if (inputId === 'temperature' || inputId === 'humidity') {
                     const value = parseFloat(input.value);
-                    return !isNaN(value) && value > 0;
+                    // Prüfe, ob Wert eine gültige Zahl ist und in den erlaubten Bereichen liegt
+                    if (inputId === 'temperature') {
+                        isValid = !isNaN(value) && value >= 12 && value <= 22;
+                    } else if (inputId === 'humidity') {
+                        isValid = !isNaN(value) && value >= 40 && value <= 90;
+                    }
+                    console.log(`${inputId}: Wert=${value}, gültig=${isValid}`);
                 }
+                // Für Entfeuchter-Laufzeit (auch 0 ist gültig)
                 else if (inputId === 'dehumidifierTime') {
-                    return input.value !== '';
+                    const value = parseFloat(input.value);
+                    isValid = !isNaN(value) && value >= 0 && value <= 24;
+                    console.log(`${inputId}: Wert=${value}, gültig=${isValid}`);
                 }
+                // Für Select-Felder (Standort, Entfeuchterort)
                 else {
-                    return input.value !== '';
+                    isValid = input.value !== '' && input.value !== null;
+                    console.log(`${inputId}: Wert='${input.value}', gültig=${isValid}`);
                 }
+                
+                return isValid;
             }
             
             function updateSingleDot(mapping) {
+                console.log(`Aktualisiere Punkt für ${mapping.inputId}`);
                 const isValid = isInputValid(mapping.inputId);
                 setDotColor(mapping.dotId, isValid);
             }
             
             function updateAllDots() {
-                inputMapping.forEach(updateSingleDot);
+                console.log('Aktualisiere alle Punkte...');
+                inputMapping.forEach(mapping => {
+                    updateSingleDot(mapping);
+                });
             }
             
             // Event-Listener hinzufügen
             inputMapping.forEach(mapping => {
                 const input = document.getElementById(mapping.inputId);
-                if (!input) return;
+                if (!input) {
+                    console.error(`Input ${mapping.inputId} nicht gefunden für Event-Listener`);
+                    return;
+                }
                 
+                console.log(`Füge Event-Listener hinzu für ${mapping.inputId}`);
+                
+                // Für Slider: input und change Events
                 if (mapping.inputId === 'temperature' || mapping.inputId === 'humidity' || mapping.inputId === 'dehumidifierTime') {
                     input.addEventListener('input', function() {
-                        updateSingleDot(mapping);
+                        console.log(`Input Event für ${mapping.inputId}, neuer Wert: ${this.value}`);
+                        setTimeout(() => updateSingleDot(mapping), 10); // Kurze Verzögerung
                     });
                     input.addEventListener('change', function() {
-                        updateSingleDot(mapping);
+                        console.log(`Change Event für ${mapping.inputId}, neuer Wert: ${this.value}`);
+                        setTimeout(() => updateSingleDot(mapping), 10);
                     });
-                } else {
+                } 
+                // Für Select-Felder: nur change Event
+                else {
                     input.addEventListener('change', function() {
-                        updateSingleDot(mapping);
+                        console.log(`Change Event für ${mapping.inputId}, neuer Wert: ${this.value}`);
+                        setTimeout(() => updateSingleDot(mapping), 10);
                     });
                 }
             });
@@ -885,31 +928,59 @@
             // Globale Funktion für updateDots
             window.updateDots = updateAllDots;
             
-            // Initiale Aktualisierung
-            setTimeout(updateAllDots, 500);
+            // Initiale Aktualisierung mit längerer Verzögerung
+            setTimeout(() => {
+                console.log('Führe initiale Punkt-Aktualisierung durch...');
+                updateAllDots();
+            }, 1000);
+            
+            console.log('Input validation setup abgeschlossen');
         }
 
-        // Slider Event-Listener Setup
+        // Slider Event-Listener Setup - NUR EINMAL DEFINIEREN
         function setupSliderEvents() {
-            // Temperatur Slider
+            console.log('Setting up slider events...');
+            
+            // Temperatur Slider - OHNE doppelte Event-Listener
             const tempSlider = document.getElementById('temperature');
-            tempSlider.addEventListener('input', function() {
-                document.getElementById('temperatureValue').textContent = this.value;
-                calculateDewpoint();
-            });
+            if (tempSlider) {
+                // Stelle sicher, dass alte Event-Listener entfernt werden
+                tempSlider.replaceWith(tempSlider.cloneNode(true));
+                const newTempSlider = document.getElementById('temperature');
+                
+                newTempSlider.addEventListener('input', function() {
+                    document.getElementById('temperatureValue').textContent = this.value;
+                    calculateDewpoint();
+                    console.log('Temperatur geändert:', this.value);
+                });
+            }
 
             // Luftfeuchtigkeits Slider
             const humiditySlider = document.getElementById('humidity');
-            humiditySlider.addEventListener('input', function() {
-                document.getElementById('humidityValue').textContent = this.value;
-                calculateDewpoint();
-            });
+            if (humiditySlider) {
+                humiditySlider.replaceWith(humiditySlider.cloneNode(true));
+                const newHumiditySlider = document.getElementById('humidity');
+                
+                newHumiditySlider.addEventListener('input', function() {
+                    document.getElementById('humidityValue').textContent = this.value;
+                    calculateDewpoint();
+                    console.log('Luftfeuchtigkeit geändert:', this.value);
+                });
+            }
 
             // Entfeuchter Zeit Slider
             const dehumidifierSlider = document.getElementById('dehumidifierTime');
-            dehumidifierSlider.addEventListener('input', function() {
-                document.getElementById('dehumidifierTimeValue').textContent = this.value;
-            });
+            if (dehumidifierSlider) {
+                dehumidifierSlider.replaceWith(dehumidifierSlider.cloneNode(true));
+                const newDehumidifierSlider = document.getElementById('dehumidifierTime');
+                
+                newDehumidifierSlider.addEventListener('input', function() {
+                    document.getElementById('dehumidifierTimeValue').textContent = this.value;
+                    console.log('Entfeuchter Zeit geändert:', this.value);
+                });
+            }
+            
+            console.log('Slider events setup abgeschlossen');
         }
 
         // App initialisieren - EINHEITLICHE INITIALISIERUNG
