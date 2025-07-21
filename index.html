@@ -110,9 +110,23 @@
             box-shadow: 0 0 5px rgba(0,0,0,0.3);
         }
         
-        .range-min, .range-max {
+        .slider-btn {
             font-size: 0.8em;
-            color: rgba(255,255,255,0.8);
+            color: rgba(255,255,255,0.9);
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .slider-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .slider-btn:active {
+            background: rgba(255,255,255,0.4);
         }
         
         /* Humidity Slider Styling */
@@ -260,18 +274,18 @@
         <div class="form-group">
             <label>Luftfeuchtigkeit (%): <span id="humidityValue">55.0</span></label>
             <div class="slider-container">
-                <span class="range-min">90%</span>
+                <button class="slider-btn" onclick="adjustSlider('humidity', 0.1)">90%</button>
                 <input type="range" id="humidity" min="40" max="90" step="0.1" value="55.0" class="slider humidity-slider" style="direction: rtl; width: 100%;">
-                <span class="range-max">40%</span>
+                <button class="slider-btn" onclick="adjustSlider('humidity', -0.1)">40%</button>
             </div>
             <!-- Zielmarkierung entfernt -->
         </div>
         <div class="form-group">
             <label>Temperatur (°C): <span id="temperatureValue">20.0</span></label>
             <div class="slider-container">
-                <span class="range-min">12°C</span>
+                <button class="slider-btn" onclick="adjustSlider('temperature', -0.1)">12°C</button>
                 <input type="range" id="temperature" min="12" max="22" step="0.1" value="20.0" class="slider">
-                <span class="range-max">22°C</span>
+                <button class="slider-btn" onclick="adjustSlider('temperature', 0.1)">22°C</button>
             </div>
         </div>
         <div class="form-group">
@@ -303,9 +317,9 @@
         <div class="form-group">
             <label>Entfeuchter läuft seit (h): <span id="dehumidifierTimeValue">0.0</span></label>
             <div class="slider-container">
-                <span class="range-min">0h</span>
+                <button class="slider-btn" onclick="adjustSlider('dehumidifierTime', -0.5)">0h</button>
                 <input type="range" id="dehumidifierTime" min="0" max="24" step="0.5" value="0.0" class="slider dehumidifier-slider" style="width: 100%;">
-                <span class="range-max">24h</span>
+                <button class="slider-btn" onclick="adjustSlider('dehumidifierTime', 0.5)">24h</button>
             </div>
         </div>
         <div class="form-group">
@@ -317,7 +331,7 @@
     </div>
 
     <div class="container">
-        <h2>📊 Gespeicherte Messungen</h2>
+        <h2>📊 Messungen</h2>
         <div id="dataStats">
             <strong id="entryCount">0</strong> Einträge | 
             Ø Luftfeuchtigkeit: <strong id="avgHumidity">-</strong>%
@@ -431,6 +445,29 @@
         document.getElementById('dehumidifierTime').addEventListener('input', function() {
             document.getElementById('dehumidifierTimeValue').textContent = this.value;
         });
+        
+        // Funktion zum Anpassen der Slider-Werte mit Buttons
+        window.adjustSlider = function(sliderId, step) {
+            const slider = document.getElementById(sliderId);
+            const currentValue = parseFloat(slider.value);
+            const min = parseFloat(slider.min);
+            const max = parseFloat(slider.max);
+            
+            // Neuen Wert berechnen und auf Grenzen prüfen
+            let newValue = currentValue + step;
+            if (newValue < min) newValue = min;
+            if (newValue > max) newValue = max;
+            
+            // Wert auf eine Dezimalstelle runden
+            newValue = Math.round(newValue * 10) / 10;
+            
+            // Slider-Wert aktualisieren
+            slider.value = newValue;
+            
+            // Event auslösen, damit die Anzeige aktualisiert wird
+            const event = new Event('input', { bubbles: true });
+            slider.dispatchEvent(event);
+        };
 
         // OpenMeteo API - komplett kostenlos, keine Registrierung nötig!
         // Koordinaten für Azmoos, Schweiz (angepasst an OpenMeteo Test-API)
