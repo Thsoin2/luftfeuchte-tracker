@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>💧 Luftfeuchte Tracker 0.2</title>
+    <title>💧 Luftfeuchte Tracker 0.9</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -98,18 +98,17 @@
             width: 15px;
             height: 15px;
             border-radius: 50%;
-            background-color: rgba(255, 100, 100, 0.6); /* Sanftes Rot */
+            background-color: rgba(255, 100, 100, 0.6);
             margin: 0 8px;
             transition: background-color 0.3s ease, transform 0.2s ease;
             cursor: help;
         }
         
         .dot-green {
-            background-color: rgba(50, 205, 50, 0.8) !important; /* Grün */
+            background-color: rgba(50, 205, 50, 0.8) !important;
             transform: scale(1.1);
         }
         
-        /* Slider Styling */
         .slider-container {
             display: flex;
             align-items: center;
@@ -168,26 +167,22 @@
             background: rgba(255,255,255,0.4);
         }
         
-        /* Humidity Slider Styling */
         .humidity-slider {
-            /* Da der Slider umgedreht ist (direction: rtl), ist 55% auf der rechten Seite */
-            /* Von links nach rechts: dunkelrot (90%) -> hellrot -> hellgelb (65%) -> dunkelgelb (56%) -> grün (55%) -> dunkelgrün (40%) */
             background: linear-gradient(90deg, 
-                #8b0000 0%, /* 90% - dunkelrot, schlechtester Wert */
-                #e74c3c 30%, /* ~75% - hellrot */
-                #f4d03f 50%, /* 65% - hellgelb */
-                #d4ac0d 68%, /* 56% - dunkelgelb */
-                #2ecc71 70%, /* 55% - grün, optimaler Wert */
-                #1d8348 100% /* 40% - dunkelgrün, bester Wert */
+                #8b0000 0%, 
+                #e74c3c 30%, 
+                #f4d03f 50%, 
+                #d4ac0d 68%, 
+                #2ecc71 70%, 
+                #1d8348 100% 
             );
         }
         
-        /* Dehumidifier Time Slider Styling */
         .dehumidifier-slider {
             background: linear-gradient(90deg, 
-                #d6eaf8 0%, /* 0h */
-                #85c1e9 50%, /* 12h */
-                #2e86c1 100% /* 24h */
+                #d6eaf8 0%, 
+                #85c1e9 50%, 
+                #2e86c1 100% 
             );
         }
         
@@ -199,8 +194,6 @@
         
         .target-line {
             position: absolute;
-            /* Da der Slider umgedreht ist (direction: rtl), ist 55% auf der rechten Seite */
-            /* Berechnung: 55% liegt bei (90-55)/(90-40) = 35/50 = 70% von rechts */
             right: 70%;
             top: 0;
             width: 2px;
@@ -318,7 +311,6 @@
                 <input type="range" id="humidity" min="40" max="90" step="0.1" value="55.0" class="slider humidity-slider" style="direction: rtl; width: 100%;">
                 <button class="slider-btn" onclick="adjustSlider('humidity', -0.1)">40%</button>
             </div>
-            <!-- Zielmarkierung entfernt -->
         </div>
         <div class="form-group">
             <label>Temperatur (°C): <span id="temperatureValue">20.0</span></label>
@@ -468,7 +460,6 @@
             const humidity = parseFloat(document.getElementById('humidity').value);
             
             if (isNaN(temp) || isNaN(humidity)) {
-                alert('Bitte geben Sie gültige Werte für Temperatur und Luftfeuchtigkeit ein.');
                 return;
             }
             
@@ -481,19 +472,6 @@
             document.getElementById('dewpoint').value = dewpoint.toFixed(1);
         }
 
-        // Automatische Taupunkt-Berechnung bei Eingabe
-        document.getElementById('temperature').addEventListener('input', function() {
-            document.getElementById('temperatureValue').textContent = this.value;
-            calculateDewpoint();
-        });
-        document.getElementById('humidity').addEventListener('input', function() {
-            document.getElementById('humidityValue').textContent = this.value;
-            calculateDewpoint();
-        });
-        document.getElementById('dehumidifierTime').addEventListener('input', function() {
-            document.getElementById('dehumidifierTimeValue').textContent = this.value;
-        });
-        
         // Funktion zum Anpassen der Slider-Werte mit Buttons
         window.adjustSlider = function(sliderId, step) {
             const slider = document.getElementById(sliderId);
@@ -518,29 +496,24 @@
         };
 
         // OpenMeteo API - komplett kostenlos, keine Registrierung nötig!
-        // Koordinaten für Azmoos, Schweiz (angepasst an OpenMeteo Test-API)
         const AZMOOS_LAT = 47.0823;
         const AZMOOS_LON = 9.4768;
         
-        // Wetterdaten laden (OpenMeteo API - kostenlos!)
+        // Wetterdaten laden
         async function loadWeatherData() {
             try {
                 updateStatus('info', '🌐 Lade aktuelle Wetterdaten...');
                 
-                // Cache-Busting Parameter hinzufügen für frische Daten
                 const timestamp = new Date().getTime();
                 const url = `https://api.open-meteo.com/v1/forecast?latitude=${AZMOOS_LAT}&longitude=${AZMOOS_LON}&current=temperature_2m,relative_humidity_2m,surface_pressure,weather_code&timezone=Europe/Zurich&_t=${timestamp}`;
                 
-                console.log('API URL:', url);
                 const response = await fetch(url);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
                 const data = await response.json();
-                console.log('API Response:', data);
                 
-                // Wetterdaten extrahieren
                 const temperature = Math.round(data.current.temperature_2m * 10) / 10;
                 const humidity = Math.round(data.current.relative_humidity_2m);
                 const pressure = Math.round(data.current.surface_pressure);
@@ -548,7 +521,6 @@
                 const weatherCode = data.current.weather_code;
                 const weatherDescription = getWeatherDescription(weatherCode);
                 
-                // Wetterdaten speichern
                 weatherData = {
                     temperature: temperature,
                     humidity: humidity,
@@ -557,7 +529,6 @@
                     weatherDescription: weatherDescription
                 };
                 
-                // UI aktualisieren
                 document.getElementById('azTemp').textContent = temperature;
                 document.getElementById('azHumidity').textContent = humidity;
                 document.getElementById('azPressure').textContent = pressure;
@@ -570,7 +541,6 @@
                 console.error('Wetter API Fehler:', error);
                 updateStatus('error', '❌ Fehler beim Laden der Wetterdaten: ' + error.message);
                 
-                // Fallback-Werte setzen
                 document.getElementById('azTemp').textContent = '--';
                 document.getElementById('azHumidity').textContent = '--';
                 document.getElementById('azPressure').textContent = '--';
@@ -579,6 +549,7 @@
                 weatherData = {};
             }
         }
+
         function calculateDewpointFromTemp(temp, humidity) {
             const a = 17.27;
             const b = 237.7;
@@ -626,36 +597,27 @@
         // Wetterdaten in Formular übernehmen
         function useWeatherData() {
             if (weatherData.temperature && weatherData.temperature !== '--') {
-                // Temperatur-Slider aktualisieren
                 document.getElementById('temperature').value = weatherData.temperature;
                 document.getElementById('temperatureValue').textContent = weatherData.temperature;
                 
-                // Luftfeuchtigkeits-Slider aktualisieren und Event auslösen
                 const humiditySlider = document.getElementById('humidity');
                 humiditySlider.value = weatherData.humidity;
                 document.getElementById('humidityValue').textContent = weatherData.humidity;
                 
-                // Wetterbeschreibung als Vorschlag in das Notizfeld einfügen
                 const notesField = document.getElementById('notes');
                 const currentDate = new Date();
                 const timeString = currentDate.toLocaleTimeString('de-DE', {hour: '2-digit', minute:'2-digit'});
                 
-                // Wenn das Notizfeld leer ist, füge nur die Wetterbeschreibung ein
-                // Ansonsten füge die Wetterbeschreibung am Anfang ein und behalte den bestehenden Text
                 if (notesField.value.trim() === '') {
                     notesField.value = `${timeString} - ${weatherData.weatherDescription}`;
                 } else {
                     notesField.value = `${timeString} - ${weatherData.weatherDescription}\n` + notesField.value;
                 }
                 
-                // Taupunkt neu berechnen
                 calculateDewpoint();
                 
-                // Indikator-Punkte aktualisieren
                 if (typeof updateDots === 'function') {
                     updateDots();
-                } else {
-                    console.log('updateDots Funktion nicht gefunden');
                 }
                 
                 updateStatus('success', '📥 Wetterdaten übernommen!');
@@ -682,7 +644,6 @@
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             };
 
-            // Validierung
             if (!data.date || !data.time || isNaN(data.humidity) || isNaN(data.temperature) || !data.location || !data.messort) {
                 updateStatus('error', '❌ Bitte füllen Sie alle Pflichtfelder aus!');
                 return;
@@ -693,13 +654,22 @@
                 updateStatus('success', '✅ Daten erfolgreich gespeichert!');
                 
                 // Formular zurücksetzen
-                document.getElementById('humidity').value = '';
-                document.getElementById('temperature').value = '';
+                document.getElementById('humidity').value = '55.0';
+                document.getElementById('humidityValue').textContent = '55.0';
+                document.getElementById('temperature').value = '20.0';
+                document.getElementById('temperatureValue').textContent = '20.0';
                 document.getElementById('dewpoint').value = '';
+                document.getElementById('dehumidifierTime').value = '0.0';
+                document.getElementById('dehumidifierTimeValue').textContent = '0.0';
                 document.getElementById('location').value = '';
                 document.getElementById('messort').value = '';
                 document.getElementById('notes').value = '';
+                
                 setCurrentDateTime();
+                calculateDewpoint();
+                if (typeof updateDots === 'function') {
+                    updateDots();
+                }
                 
                 loadMeasurements();
             } catch (error) {
@@ -746,7 +716,7 @@
                     <td>${entry.azHumidity}%</td>
                     <td>${entry.azDewpoint}°C</td>
                     <td>${entry.notes || '-'}</td>
-                    <td><button onclick="console.log('Lösch-Button wurde geklickt für ID:', '${entry.id}'); deleteMeasurement('${entry.id}')" style="background: #f44336; padding: 5px 10px;">🗑️</button></td>
+                    <td><button onclick="deleteMeasurement('${entry.id}')" style="background: #f44336; padding: 5px 10px;">🗑️</button></td>
                 `;
             });
         }
@@ -763,39 +733,27 @@
             }
         }
 
-        // Messung löschen - global verfügbar machen
+        // Messung löschen
         window.deleteMeasurement = async function(id) {
             if (!confirm('Möchten Sie diese Messung wirklich löschen?')) return;
             
             try {
-                console.log('Versuche Messung zu löschen mit ID:', id);
                 if (!db) {
-                    console.error('Firebase-Datenbank nicht initialisiert');
                     updateStatus('error', '❌ Fehler: Firebase-Datenbank nicht initialisiert');
                     return;
                 }
                 
-                console.log('Firebase-Datenbank ist initialisiert:', db);
-                console.log('Versuche Dokument zu löschen:', db.collection('measurements').doc(id));
-                
-                // Versuche zuerst, das Dokument zu lesen, um zu prüfen, ob es existiert
                 const docRef = db.collection('measurements').doc(id);
                 const docSnapshot = await docRef.get();
                 
                 if (!docSnapshot.exists) {
-                    console.error('Dokument existiert nicht:', id);
                     updateStatus('error', '❌ Fehler: Dokument nicht gefunden');
                     return;
                 }
                 
-                console.log('Dokument existiert, Daten:', docSnapshot.data());
                 await docRef.delete();
-                console.log('Dokument erfolgreich gelöscht');
-                
                 updateStatus('success', '✅ Messung gelöscht!');
-                console.log('Lade Messungen neu...');
                 await loadMeasurements();
-                console.log('Messungen neu geladen');
             } catch (error) {
                 console.error('Fehler beim Löschen:', error);
                 updateStatus('error', '❌ Fehler beim Löschen: ' + error.message);
@@ -857,19 +815,8 @@
             updateStatus('success', '✅ CSV-Datei heruntergeladen!');
         }
 
-        // Beim Laden der Seite
-        window.onload = function() {
-            initFirebase();
-            setCurrentDateTime();
-            setInterval(setCurrentDateTime, 60000); // Aktualisiere Zeit jede Minute
-            loadWeatherData();
-            setupSliders();
-            setupInputValidation();
-        };
-        
-        // Komplett neuer Ansatz für die Indikator-Punkte
+        // Input-Validierung und Indikator-Punkte Setup
         function setupInputValidation() {
-            // Mapping von Eingabefeldern zu Indikator-Punkten
             const inputMapping = [
                 { inputId: 'temperature', dotId: 'dot1' },
                 { inputId: 'humidity', dotId: 'dot2' },
@@ -878,67 +825,49 @@
                 { inputId: 'dehumidifierTime', dotId: 'dot5' }
             ];
             
-            // Funktion zum direkten Setzen der Farbe eines Punktes
             function setDotColor(dotId, isValid) {
                 const dot = document.getElementById(dotId);
-                if (!dot) {
-                    console.error(`Punkt mit ID ${dotId} nicht gefunden`);
-                    return;
-                }
+                if (!dot) return;
                 
                 if (isValid) {
-                    // Grün für gültige Eingabe
                     dot.style.backgroundColor = 'rgba(50, 205, 50, 0.8)';
                     dot.style.transform = 'scale(1.1)';
                 } else {
-                    // Rot für ungültige/leere Eingabe
                     dot.style.backgroundColor = 'rgba(255, 100, 100, 0.6)';
                     dot.style.transform = 'scale(1.0)';
                 }
             }
             
-            // Funktion zum Prüfen, ob ein Eingabefeld gültig ist
             function isInputValid(inputId) {
                 const input = document.getElementById(inputId);
                 if (!input) return false;
                 
-                // Für Slider
                 if (inputId === 'temperature' || inputId === 'humidity') {
                     const value = parseFloat(input.value);
                     return !isNaN(value) && value > 0;
                 }
-                // Für Entfeuchter-Laufzeit (auch 0 ist gültig)
                 else if (inputId === 'dehumidifierTime') {
                     return input.value !== '';
                 }
-                // Für Select-Felder
                 else {
                     return input.value !== '';
                 }
             }
             
-            // Funktion zum Aktualisieren eines einzelnen Punktes
             function updateSingleDot(mapping) {
                 const isValid = isInputValid(mapping.inputId);
                 setDotColor(mapping.dotId, isValid);
-                console.log(`Punkt ${mapping.dotId} für ${mapping.inputId}: ${isValid ? 'grün' : 'rot'}`);
             }
             
-            // Funktion zum Aktualisieren aller Punkte
             function updateAllDots() {
                 inputMapping.forEach(updateSingleDot);
-                console.log('Alle Punkte wurden aktualisiert');
             }
             
-            // Event-Listener für Eingabefelder hinzufügen
+            // Event-Listener hinzufügen
             inputMapping.forEach(mapping => {
                 const input = document.getElementById(mapping.inputId);
-                if (!input) {
-                    console.error(`Eingabefeld ${mapping.inputId} nicht gefunden`);
-                    return;
-                }
+                if (!input) return;
                 
-                // Für Slider beide Events
                 if (mapping.inputId === 'temperature' || mapping.inputId === 'humidity' || mapping.inputId === 'dehumidifierTime') {
                     input.addEventListener('input', function() {
                         updateSingleDot(mapping);
@@ -946,37 +875,70 @@
                     input.addEventListener('change', function() {
                         updateSingleDot(mapping);
                     });
-                }
-                // Für Select-Felder nur change-Event
-                else {
+                } else {
                     input.addEventListener('change', function() {
                         updateSingleDot(mapping);
                     });
                 }
             });
             
-            // Initiale Aktualisierung mit Verzögerung
-            setTimeout(updateAllDots, 1000);
-            
-            // Funktionen global verfügbar machen
+            // Globale Funktion für updateDots
             window.updateDots = updateAllDots;
-            window.checkDot = function(dotId) {
-                const dot = document.getElementById(dotId);
-                if (dot) {
-                    console.log(`Punkt ${dotId} Farbe: ${dot.style.backgroundColor}`);
-                }
-            };
+            
+            // Initiale Aktualisierung
+            setTimeout(updateAllDots, 500);
         }
 
-        // App initialisieren
-        window.addEventListener('load', () => {
+        // Slider Event-Listener Setup
+        function setupSliderEvents() {
+            // Temperatur Slider
+            const tempSlider = document.getElementById('temperature');
+            tempSlider.addEventListener('input', function() {
+                document.getElementById('temperatureValue').textContent = this.value;
+                calculateDewpoint();
+            });
+
+            // Luftfeuchtigkeits Slider
+            const humiditySlider = document.getElementById('humidity');
+            humiditySlider.addEventListener('input', function() {
+                document.getElementById('humidityValue').textContent = this.value;
+                calculateDewpoint();
+            });
+
+            // Entfeuchter Zeit Slider
+            const dehumidifierSlider = document.getElementById('dehumidifierTime');
+            dehumidifierSlider.addEventListener('input', function() {
+                document.getElementById('dehumidifierTimeValue').textContent = this.value;
+            });
+        }
+
+        // App initialisieren - EINHEITLICHE INITIALISIERUNG
+        function initApp() {
+            console.log('App wird initialisiert...');
+            
+            // Grundfunktionen
             setCurrentDateTime();
             initFirebase();
             loadWeatherData();
             
-            // Datum/Zeit alle Minute aktualisieren
+            // UI Setup
+            setupSliderEvents();
+            setupInputValidation();
+            calculateDewpoint();
+            
+            // Regelmäßige Updates
             setInterval(setCurrentDateTime, 60000);
-        });
+            
+            console.log('App erfolgreich initialisiert!');
+        }
+
+        // Warten bis DOM geladen ist, dann App initialisieren
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initApp);
+        } else {
+            // DOM bereits geladen
+            initApp();
+        }
     </script>
 </body>
 </html>
