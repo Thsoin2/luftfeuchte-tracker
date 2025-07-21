@@ -21,6 +21,14 @@
             margin: 10px 0;
             border: 1px solid rgba(255,255,255,0.2);
         }
+        .weather-description {
+            font-size: 0.9em;
+            font-weight: normal;
+            color: rgba(255,255,255,0.9);
+            margin-top: -10px;
+            margin-bottom: 15px;
+            font-style: italic;
+        }
         .weather-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -56,18 +64,49 @@
             box-sizing: border-box;
         }
         button {
-            background: linear-gradient(45deg, #FF6B6B, #FF8E53);
+            background-color: #ff7f7f;
             color: white;
             border: none;
-            padding: 12px 20px;
-            border-radius: 8px;
+            border-radius: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
             cursor: pointer;
-            font-weight: bold;
-            margin: 5px;
-            transition: transform 0.2s;
+            margin-top: 15px;
+            transition: background-color 0.3s;
         }
+
         button:hover {
-            transform: translateY(-2px);
+            background-color: #ff5555;
+        }
+        
+        .save-button-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        
+        .indicator-dots {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 10px;
+            width: 100%;
+        }
+        
+        .indicator-dot {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background-color: rgba(255, 100, 100, 0.6); /* Sanftes Rot */
+            margin: 0 8px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            cursor: help;
+        }
+        
+        .dot-green {
+            background-color: rgba(50, 205, 50, 0.8) !important; /* Grün */
+            transform: scale(1.1);
         }
         
         /* Slider Styling */
@@ -237,6 +276,7 @@
 
     <div class="container">
         <h2>🌤️ Wetter Azmoos</h2>
+        <div class="weather-description" id="weatherDescription">Wetterdaten werden geladen...</div>
         <div class="weather-grid">
             <div class="weather-card">
                 <div>Temperatur (°C)</div>
@@ -326,8 +366,16 @@
             <label>Notizen (optional)</label>
             <textarea id="notes" rows="3" placeholder="Besondere Umstände, Beobachtungen..."></textarea>
         </div>
-        <button onclick="saveData()">💾 Daten speichern</button>
-        <button onclick="calculateDewpoint()">🧮 Taupunkt neu berechnen</button>
+        <div class="save-button-container">
+            <div class="indicator-dots">
+                <div class="indicator-dot" id="dot1" title="Temperatur"></div>
+                <div class="indicator-dot" id="dot2" title="Luftfeuchtigkeit"></div>
+                <div class="indicator-dot" id="dot3" title="Messstandort"></div>
+                <div class="indicator-dot" id="dot4" title="Entfeuchterort"></div>
+                <div class="indicator-dot" id="dot5" title="Entfeuchter-Laufzeit"></div>
+            </div>
+            <button id="saveButton" onclick="saveData()">💾 Daten speichern</button>
+        </div>
     </div>
 
     <div class="container">
@@ -481,7 +529,7 @@
                 
                 // Cache-Busting Parameter hinzufügen für frische Daten
                 const timestamp = new Date().getTime();
-                const url = `https://api.open-meteo.com/v1/forecast?latitude=${AZMOOS_LAT}&longitude=${AZMOOS_LON}&current=temperature_2m,relative_humidity_2m,surface_pressure&timezone=Europe/Zurich&_t=${timestamp}`;
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${AZMOOS_LAT}&longitude=${AZMOOS_LON}&current=temperature_2m,relative_humidity_2m,surface_pressure,weather_code&timezone=Europe/Zurich&_t=${timestamp}`;
                 
                 console.log('API URL:', url);
                 const response = await fetch(url);
@@ -497,13 +545,16 @@
                 const humidity = Math.round(data.current.relative_humidity_2m);
                 const pressure = Math.round(data.current.surface_pressure);
                 const dewpoint = calculateDewpointFromTemp(temperature, humidity);
+                const weatherCode = data.current.weather_code;
+                const weatherDescription = getWeatherDescription(weatherCode);
                 
                 // Wetterdaten speichern
                 weatherData = {
                     temperature: temperature,
                     humidity: humidity,
                     pressure: pressure,
-                    dewpoint: dewpoint
+                    dewpoint: dewpoint,
+                    weatherDescription: weatherDescription
                 };
                 
                 // UI aktualisieren
@@ -511,6 +562,7 @@
                 document.getElementById('azHumidity').textContent = humidity;
                 document.getElementById('azPressure').textContent = pressure;
                 document.getElementById('azDewpoint').textContent = dewpoint;
+                document.getElementById('weatherDescription').textContent = weatherDescription;
                 
                 updateStatus('success', '✅ Wetterdaten erfolgreich geladen!');
                 
@@ -534,13 +586,78 @@
             const dewpoint = (b * alpha) / (a - alpha);
             return dewpoint.toFixed(1);
         }
+        
+        // Wettercode in deutsche Beschreibung umwandeln
+        function getWeatherDescription(code) {
+            const weatherCodes = {
+                0: "Klarer Himmel",
+                1: "Überwiegend klar",
+                2: "Teilweise bewölkt",
+                3: "Bewölkt",
+                45: "Nebel",
+                48: "Dichter Nebel",
+                51: "Leichter Nieselregen",
+                53: "Mäßiger Nieselregen",
+                55: "Starker Nieselregen",
+                56: "Leichter gefrierender Nieselregen",
+                57: "Starker gefrierender Nieselregen",
+                61: "Leichter Regen",
+                63: "Mäßiger Regen",
+                65: "Starker Regen",
+                66: "Leichter gefrierender Regen",
+                67: "Starker gefrierender Regen",
+                71: "Leichter Schneefall",
+                73: "Mäßiger Schneefall",
+                75: "Starker Schneefall",
+                77: "Schneegriesel",
+                80: "Leichte Regenschauer",
+                81: "Mäßige Regenschauer",
+                82: "Starke Regenschauer",
+                85: "Leichte Schneeschauer",
+                86: "Starke Schneeschauer",
+                95: "Gewitter",
+                96: "Gewitter mit leichtem Hagel",
+                99: "Gewitter mit starkem Hagel"
+            };
+            
+            return weatherCodes[code] || "Wetterdaten nicht verfügbar";
+        }
 
         // Wetterdaten in Formular übernehmen
         function useWeatherData() {
             if (weatherData.temperature && weatherData.temperature !== '--') {
+                // Temperatur-Slider aktualisieren
                 document.getElementById('temperature').value = weatherData.temperature;
-                document.getElementById('humidity').value = weatherData.humidity;
+                document.getElementById('temperatureValue').textContent = weatherData.temperature;
+                
+                // Luftfeuchtigkeits-Slider aktualisieren und Event auslösen
+                const humiditySlider = document.getElementById('humidity');
+                humiditySlider.value = weatherData.humidity;
+                document.getElementById('humidityValue').textContent = weatherData.humidity;
+                
+                // Wetterbeschreibung als Vorschlag in das Notizfeld einfügen
+                const notesField = document.getElementById('notes');
+                const currentDate = new Date();
+                const timeString = currentDate.toLocaleTimeString('de-DE', {hour: '2-digit', minute:'2-digit'});
+                
+                // Wenn das Notizfeld leer ist, füge nur die Wetterbeschreibung ein
+                // Ansonsten füge die Wetterbeschreibung am Anfang ein und behalte den bestehenden Text
+                if (notesField.value.trim() === '') {
+                    notesField.value = `${timeString} - ${weatherData.weatherDescription}`;
+                } else {
+                    notesField.value = `${timeString} - ${weatherData.weatherDescription}\n` + notesField.value;
+                }
+                
+                // Taupunkt neu berechnen
                 calculateDewpoint();
+                
+                // Indikator-Punkte aktualisieren
+                if (typeof updateDots === 'function') {
+                    updateDots();
+                } else {
+                    console.log('updateDots Funktion nicht gefunden');
+                }
+                
                 updateStatus('success', '📥 Wetterdaten übernommen!');
             } else {
                 updateStatus('error', '❌ Keine Wetterdaten verfügbar!');
@@ -738,6 +855,117 @@
             link.click();
             
             updateStatus('success', '✅ CSV-Datei heruntergeladen!');
+        }
+
+        // Beim Laden der Seite
+        window.onload = function() {
+            initFirebase();
+            setCurrentDateTime();
+            setInterval(setCurrentDateTime, 60000); // Aktualisiere Zeit jede Minute
+            loadWeatherData();
+            setupSliders();
+            setupInputValidation();
+        };
+        
+        // Komplett neuer Ansatz für die Indikator-Punkte
+        function setupInputValidation() {
+            // Mapping von Eingabefeldern zu Indikator-Punkten
+            const inputMapping = [
+                { inputId: 'temperature', dotId: 'dot1' },
+                { inputId: 'humidity', dotId: 'dot2' },
+                { inputId: 'location', dotId: 'dot3' },
+                { inputId: 'messort', dotId: 'dot4' },
+                { inputId: 'dehumidifierTime', dotId: 'dot5' }
+            ];
+            
+            // Funktion zum direkten Setzen der Farbe eines Punktes
+            function setDotColor(dotId, isValid) {
+                const dot = document.getElementById(dotId);
+                if (!dot) {
+                    console.error(`Punkt mit ID ${dotId} nicht gefunden`);
+                    return;
+                }
+                
+                if (isValid) {
+                    // Grün für gültige Eingabe
+                    dot.style.backgroundColor = 'rgba(50, 205, 50, 0.8)';
+                    dot.style.transform = 'scale(1.1)';
+                } else {
+                    // Rot für ungültige/leere Eingabe
+                    dot.style.backgroundColor = 'rgba(255, 100, 100, 0.6)';
+                    dot.style.transform = 'scale(1.0)';
+                }
+            }
+            
+            // Funktion zum Prüfen, ob ein Eingabefeld gültig ist
+            function isInputValid(inputId) {
+                const input = document.getElementById(inputId);
+                if (!input) return false;
+                
+                // Für Slider
+                if (inputId === 'temperature' || inputId === 'humidity') {
+                    const value = parseFloat(input.value);
+                    return !isNaN(value) && value > 0;
+                }
+                // Für Entfeuchter-Laufzeit (auch 0 ist gültig)
+                else if (inputId === 'dehumidifierTime') {
+                    return input.value !== '';
+                }
+                // Für Select-Felder
+                else {
+                    return input.value !== '';
+                }
+            }
+            
+            // Funktion zum Aktualisieren eines einzelnen Punktes
+            function updateSingleDot(mapping) {
+                const isValid = isInputValid(mapping.inputId);
+                setDotColor(mapping.dotId, isValid);
+                console.log(`Punkt ${mapping.dotId} für ${mapping.inputId}: ${isValid ? 'grün' : 'rot'}`);
+            }
+            
+            // Funktion zum Aktualisieren aller Punkte
+            function updateAllDots() {
+                inputMapping.forEach(updateSingleDot);
+                console.log('Alle Punkte wurden aktualisiert');
+            }
+            
+            // Event-Listener für Eingabefelder hinzufügen
+            inputMapping.forEach(mapping => {
+                const input = document.getElementById(mapping.inputId);
+                if (!input) {
+                    console.error(`Eingabefeld ${mapping.inputId} nicht gefunden`);
+                    return;
+                }
+                
+                // Für Slider beide Events
+                if (mapping.inputId === 'temperature' || mapping.inputId === 'humidity' || mapping.inputId === 'dehumidifierTime') {
+                    input.addEventListener('input', function() {
+                        updateSingleDot(mapping);
+                    });
+                    input.addEventListener('change', function() {
+                        updateSingleDot(mapping);
+                    });
+                }
+                // Für Select-Felder nur change-Event
+                else {
+                    input.addEventListener('change', function() {
+                        updateSingleDot(mapping);
+                    });
+                }
+            });
+            
+            // Initiale Aktualisierung mit Verzögerung
+            setTimeout(updateAllDots, 1000);
+            
+            // Funktionen global verfügbar machen
+            window.updateDots = updateAllDots;
+            window.checkDot = function(dotId) {
+                const dot = document.getElementById(dotId);
+                if (dot) {
+                    console.log(`Punkt ${dotId} Farbe: ${dot.style.backgroundColor}`);
+                }
+            };
         }
 
         // App initialisieren
