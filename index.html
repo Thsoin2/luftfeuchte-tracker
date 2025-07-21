@@ -81,6 +81,7 @@
         .slider {
             flex: 1;
             -webkit-appearance: none;
+            appearance: none;
             height: 10px;
             border-radius: 5px;
             background: linear-gradient(90deg, #3498db, #e74c3c);
@@ -112,6 +113,56 @@
         .range-min, .range-max {
             font-size: 0.8em;
             color: rgba(255,255,255,0.8);
+        }
+        
+        /* Humidity Slider Styling */
+        .humidity-slider {
+            /* Da der Slider umgedreht ist (direction: rtl), ist 55% auf der rechten Seite */
+            /* Von links nach rechts: dunkelrot (90%) -> hellrot -> hellgelb (65%) -> dunkelgelb (56%) -> grün (55%) -> dunkelgrün (40%) */
+            background: linear-gradient(90deg, 
+                #8b0000 0%, /* 90% - dunkelrot, schlechtester Wert */
+                #e74c3c 30%, /* ~75% - hellrot */
+                #f4d03f 50%, /* 65% - hellgelb */
+                #d4ac0d 68%, /* 56% - dunkelgelb */
+                #2ecc71 70%, /* 55% - grün, optimaler Wert */
+                #1d8348 100% /* 40% - dunkelgrün, bester Wert */
+            );
+        }
+        
+        /* Dehumidifier Time Slider Styling */
+        .dehumidifier-slider {
+            background: linear-gradient(90deg, 
+                #d6eaf8 0%, /* 0h */
+                #85c1e9 50%, /* 12h */
+                #2e86c1 100% /* 24h */
+            );
+        }
+        
+        .target-marker {
+            position: relative;
+            height: 20px;
+            margin-top: 5px;
+        }
+        
+        .target-line {
+            position: absolute;
+            /* Da der Slider umgedreht ist (direction: rtl), ist 55% auf der rechten Seite */
+            /* Berechnung: 55% liegt bei (90-55)/(90-40) = 35/50 = 70% von rechts */
+            right: 70%;
+            top: 0;
+            width: 2px;
+            height: 10px;
+            background-color: white;
+        }
+        
+        .target-label {
+            position: absolute;
+            right: 70%;
+            top: 10px;
+            transform: translateX(50%);
+            font-size: 0.8em;
+            color: white;
+            white-space: nowrap;
         }
         .status {
             padding: 10px;
@@ -204,14 +255,19 @@
             <input type="time" id="time" readonly>
         </div>
         <div class="form-group">
-            <label>Luftfeuchtigkeit (%)</label>
-            <input type="number" id="humidity" min="0" max="100" step="0.1" placeholder="z.B. 65.5">
+            <label>Luftfeuchtigkeit (%): <span id="humidityValue">55.0</span></label>
+            <div class="slider-container">
+                <span class="range-min">90%</span>
+                <input type="range" id="humidity" min="40" max="90" step="0.1" value="55.0" class="slider humidity-slider" style="direction: rtl; width: 100%;">
+                <span class="range-max">40%</span>
+            </div>
+            <!-- Zielmarkierung entfernt -->
         </div>
         <div class="form-group">
             <label>Temperatur (°C): <span id="temperatureValue">20.0</span></label>
             <div class="slider-container">
-                <span class="range-min">15°C</span>
-                <input type="range" id="temperature" min="15" max="22" step="0.1" value="20.0" class="slider">
+                <span class="range-min">12°C</span>
+                <input type="range" id="temperature" min="12" max="22" step="0.1" value="20.0" class="slider">
                 <span class="range-max">22°C</span>
             </div>
         </div>
@@ -242,6 +298,14 @@
             </select>
         </div>
         <div class="form-group">
+            <label>Entfeuchter läuft seit (Stunden): <span id="dehumidifierTimeValue">0.0</span></label>
+            <div class="slider-container">
+                <span class="range-min">0h</span>
+                <input type="range" id="dehumidifierTime" min="0" max="24" step="0.5" value="0.0" class="slider dehumidifier-slider" style="width: 100%;">
+                <span class="range-max">24h</span>
+            </div>
+        </div>
+        <div class="form-group">
             <label>Notizen (optional)</label>
             <textarea id="notes" rows="3" placeholder="Besondere Umstände, Beobachtungen..."></textarea>
         </div>
@@ -266,6 +330,7 @@
                         <th>LF%</th>
                         <th>T°C</th>
                         <th>TP°C</th>
+                        <th>Ent. h</th>
                         <th>Az T°C</th>
                         <th>Az LF%</th>
                         <th>Az TP°C</th>
@@ -356,7 +421,13 @@
             document.getElementById('temperatureValue').textContent = this.value;
             calculateDewpoint();
         });
-        document.getElementById('humidity').addEventListener('input', calculateDewpoint);
+        document.getElementById('humidity').addEventListener('input', function() {
+            document.getElementById('humidityValue').textContent = this.value;
+            calculateDewpoint();
+        });
+        document.getElementById('dehumidifierTime').addEventListener('input', function() {
+            document.getElementById('dehumidifierTimeValue').textContent = this.value;
+        });
 
         // OpenMeteo API - komplett kostenlos, keine Registrierung nötig!
         // Koordinaten für Azmoos, Schweiz (angepasst an OpenMeteo Test-API)
@@ -444,6 +515,7 @@
                 humidity: parseFloat(document.getElementById('humidity').value),
                 temperature: parseFloat(document.getElementById('temperature').value),
                 dewpoint: parseFloat(document.getElementById('dewpoint').value),
+                dehumidifierTime: parseFloat(document.getElementById('dehumidifierTime').value),
                 location: document.getElementById('location').value,
                 messort: document.getElementById('messort').value,
                 notes: document.getElementById('notes').value,
@@ -512,6 +584,7 @@
                     <td>${entry.humidity}%</td>
                     <td>${entry.temperature}°C</td>
                     <td>${entry.dewpoint}°C</td>
+                    <td>${entry.dehumidifierTime !== undefined ? entry.dehumidifierTime : '-'}</td>
                     <td>${entry.azTemp}°C</td>
                     <td>${entry.azHumidity}%</td>
                     <td>${entry.azDewpoint}°C</td>
@@ -573,7 +646,7 @@
                 return;
             }
             
-            const headers = ['Datum', 'Zeit', 'Standort', 'Entfeuchterort', 'Luftfeuchtigkeit%', 'Temperatur°C', 'Taupunkt°C', 'Az_Temp°C', 'Az_LF%', 'Az_TP°C', 'Notizen'];
+            const headers = ['Datum', 'Zeit', 'Standort', 'Entfeuchterort', 'Luftfeuchtigkeit%', 'Temperatur°C', 'Taupunkt°C', 'Entfeuchter_h', 'Az_Temp°C', 'Az_LF%', 'Az_TP°C', 'Notizen'];
             const csvContent = [
                 headers.join(','),
                 ...measurements.map(entry => [
@@ -584,6 +657,7 @@
                     entry.humidity,
                     entry.temperature,
                     entry.dewpoint,
+                    entry.dehumidifierTime !== undefined ? entry.dehumidifierTime : '',
                     entry.azTemp,
                     entry.azHumidity,
                     entry.azDewpoint,
