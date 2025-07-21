@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>💧 Luftfeuchte Tracker 0.9</title>
+    <title>💧 Luftfeuchte Tracker 1.0</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -360,8 +360,8 @@
         </div>
         <div class="save-button-container">
             <div class="indicator-dots">
-                <div class="indicator-dot" id="dot1" title="Temperatur"></div>
-                <div class="indicator-dot" id="dot2" title="Luftfeuchtigkeit"></div>
+                <div class="indicator-dot" id="dot1" title="Luftfeuchtigkeit"></div>
+                <div class="indicator-dot" id="dot2" title="Temperatur"></div>
                 <div class="indicator-dot" id="dot3" title="Messstandort"></div>
                 <div class="indicator-dot" id="dot4" title="Entfeuchterort"></div>
                 <div class="indicator-dot" id="dot5" title="Entfeuchter-Laufzeit"></div>
@@ -830,19 +830,20 @@
             
             // Flag-System um zu verfolgen, welche Felder vom Benutzer bearbeitet wurden
             const userInteracted = {
-                temperature: false,
-                humidity: false,
-                location: false,
-                messort: false,
-                dehumidifierTime: false
+                humidity: false,        // Punkt 1
+                temperature: false,     // Punkt 2
+                location: false,        // Punkt 3
+                messort: false,         // Punkt 4
+                dehumidifierTime: false // Punkt 5
             };
             
+            // KORRIGIERTE ZUORDNUNG: Punkt 1 = Luftfeuchtigkeit, Punkt 2 = Temperatur
             const inputMapping = [
-                { inputId: 'temperature', dotId: 'dot1' },
-                { inputId: 'humidity', dotId: 'dot2' },
-                { inputId: 'location', dotId: 'dot3' },
-                { inputId: 'messort', dotId: 'dot4' },
-                { inputId: 'dehumidifierTime', dotId: 'dot5' }
+                { inputId: 'humidity', dotId: 'dot1' },        // Punkt 1: Luftfeuchtigkeit
+                { inputId: 'temperature', dotId: 'dot2' },     // Punkt 2: Temperatur
+                { inputId: 'location', dotId: 'dot3' },        // Punkt 3: Messstandort
+                { inputId: 'messort', dotId: 'dot4' },         // Punkt 4: Entfeuchterort
+                { inputId: 'dehumidifierTime', dotId: 'dot5' } // Punkt 5: Entfeuchter-Laufzeit
             ];
             
             function setDotColor(dotId, isValid) {
@@ -910,6 +911,9 @@
                 console.log(`Aktualisiere Punkt für ${mapping.inputId}`);
                 const isValid = isInputValid(mapping.inputId);
                 setDotColor(mapping.dotId, isValid);
+                
+                // Prüfe nach jedem Update, ob der Speichern-Button grün werden soll
+                updateSaveButton();
             }
             
             function updateAllDots() {
@@ -917,6 +921,29 @@
                 inputMapping.forEach(mapping => {
                     updateSingleDot(mapping);
                 });
+            }
+            
+            // Neue Funktion: Speichern-Button grün/rot setzen
+            function updateSaveButton() {
+                const saveButton = document.getElementById('saveButton');
+                if (!saveButton) return;
+                
+                // Prüfe, ob alle Inputs gültig sind
+                const allValid = inputMapping.every(mapping => isInputValid(mapping.inputId));
+                
+                console.log(`Alle Felder gültig: ${allValid}`);
+                
+                if (allValid) {
+                    // Alle Punkte grün -> Button grün
+                    saveButton.style.background = 'linear-gradient(45deg, #4CAF50, #45a049)';
+                    saveButton.style.boxShadow = '0 4px 8px rgba(76, 175, 80, 0.3)';
+                    console.log('Speichern-Button ist jetzt grün');
+                } else {
+                    // Nicht alle Punkte grün -> Button rot (Standard)
+                    saveButton.style.background = '#ff7f7f';
+                    saveButton.style.boxShadow = 'none';
+                    console.log('Speichern-Button ist jetzt rot');
+                }
             }
             
             // Funktion zum Markieren eines Feldes als "vom Benutzer bearbeitet"
@@ -932,6 +959,7 @@
                     userInteracted[key] = false;
                 });
                 updateAllDots(); // Alle Punkte wieder rot machen
+                updateSaveButton(); // Button wieder rot machen
             }
             
             // Event-Listener hinzufügen
@@ -970,11 +998,13 @@
             // Globale Funktionen verfügbar machen
             window.updateDots = updateAllDots;
             window.resetInteractionFlags = resetInteractionFlags;
+            window.updateSaveButton = updateSaveButton;
             
             // Initiale Aktualisierung - ALLE PUNKTE SOLLEN ROT SEIN
             setTimeout(() => {
                 console.log('Führe initiale Punkt-Aktualisierung durch - alle Punkte rot');
                 updateAllDots(); // Da userInteracted alle false sind, werden alle Punkte rot
+                updateSaveButton(); // Button auch rot
             }, 1000);
             
             console.log('Input validation setup abgeschlossen');
