@@ -208,7 +208,8 @@
 </head>
 <body>
     <div class="container">
-        <h1>💧 Luftfeuchte Tracker</h1>
+        <h1 style="text-align: center; margin-bottom: 0;">💧 Luftfeuchte</h1>
+        <h1 style="text-align: center; margin-top: 0;">Tracker</h1>
         
         <div class="firebase-status">
             <div class="status-dot" id="statusDot"></div>
@@ -221,7 +222,7 @@
     </div>
 
     <div class="container">
-        <h2>🌤️ Aktuelle Wetterdaten - Azmoos</h2>
+        <h2>🌤️ Wetter Azmoos</h2>
         <div class="weather-grid">
             <div class="weather-card">
                 <div>Temperatur (°C)</div>
@@ -245,14 +246,16 @@
     </div>
 
     <div class="container">
-        <h2>📝 Neue Messung hinzufügen</h2>
-        <div class="form-group">
-            <label>Datum (automatisch)</label>
-            <input type="date" id="date" readonly>
-        </div>
-        <div class="form-group">
-            <label>Uhrzeit (automatisch)</label>
-            <input type="time" id="time" readonly>
+        <h2>📝 neue Messung </h2>
+        <div style="display: flex; gap: 15px;">
+            <div class="form-group" style="flex: 1;">
+                <label>Datum</label>
+                <input type="date" id="date" readonly>
+            </div>
+            <div class="form-group" style="flex: 1;">
+                <label>Uhrzeit</label>
+                <input type="time" id="time" readonly>
+            </div>
         </div>
         <div class="form-group">
             <label>Luftfeuchtigkeit (%): <span id="humidityValue">55.0</span></label>
@@ -272,7 +275,7 @@
             </div>
         </div>
         <div class="form-group">
-            <label>Taupunkt (°C) - Automatisch berechnet</label>
+            <label>Taupunkt (°C) - berechnet</label>
             <input type="number" id="dewpoint" step="0.1" readonly>
         </div>
         <div class="form-group">
@@ -298,7 +301,7 @@
             </select>
         </div>
         <div class="form-group">
-            <label>Entfeuchter läuft seit (Stunden): <span id="dehumidifierTimeValue">0.0</span></label>
+            <label>Entfeuchter läuft seit (h): <span id="dehumidifierTimeValue">0.0</span></label>
             <div class="slider-container">
                 <span class="range-min">0h</span>
                 <input type="range" id="dehumidifierTime" min="0" max="24" step="0.5" value="0.0" class="slider dehumidifier-slider" style="width: 100%;">
@@ -589,7 +592,7 @@
                     <td>${entry.azHumidity}%</td>
                     <td>${entry.azDewpoint}°C</td>
                     <td>${entry.notes || '-'}</td>
-                    <td><button onclick="deleteMeasurement('${entry.id}')" style="background: #f44336; padding: 5px 10px;">🗑️</button></td>
+                    <td><button onclick="console.log('Lösch-Button wurde geklickt für ID:', '${entry.id}'); deleteMeasurement('${entry.id}')" style="background: #f44336; padding: 5px 10px;">🗑️</button></td>
                 `;
             });
         }
@@ -606,15 +609,41 @@
             }
         }
 
-        // Messung löschen
-        async function deleteMeasurement(id) {
+        // Messung löschen - global verfügbar machen
+        window.deleteMeasurement = async function(id) {
             if (!confirm('Möchten Sie diese Messung wirklich löschen?')) return;
             
             try {
-                await db.collection('measurements').doc(id).delete();
+                console.log('Versuche Messung zu löschen mit ID:', id);
+                if (!db) {
+                    console.error('Firebase-Datenbank nicht initialisiert');
+                    updateStatus('error', '❌ Fehler: Firebase-Datenbank nicht initialisiert');
+                    return;
+                }
+                
+                console.log('Firebase-Datenbank ist initialisiert:', db);
+                console.log('Versuche Dokument zu löschen:', db.collection('measurements').doc(id));
+                
+                // Versuche zuerst, das Dokument zu lesen, um zu prüfen, ob es existiert
+                const docRef = db.collection('measurements').doc(id);
+                const docSnapshot = await docRef.get();
+                
+                if (!docSnapshot.exists) {
+                    console.error('Dokument existiert nicht:', id);
+                    updateStatus('error', '❌ Fehler: Dokument nicht gefunden');
+                    return;
+                }
+                
+                console.log('Dokument existiert, Daten:', docSnapshot.data());
+                await docRef.delete();
+                console.log('Dokument erfolgreich gelöscht');
+                
                 updateStatus('success', '✅ Messung gelöscht!');
-                loadMeasurements();
+                console.log('Lade Messungen neu...');
+                await loadMeasurements();
+                console.log('Messungen neu geladen');
             } catch (error) {
+                console.error('Fehler beim Löschen:', error);
                 updateStatus('error', '❌ Fehler beim Löschen: ' + error.message);
             }
         }
