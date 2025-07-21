@@ -616,9 +616,15 @@
                 
                 calculateDewpoint();
                 
-                if (typeof updateDots === 'function') {
-                    updateDots();
-                }
+                // WICHTIG: Da Wetterdaten automatisch übernommen wurden, müssen wir diese Felder als "bearbeitet" markieren
+                // Dazu lösen wir künstlich Events aus, damit das Flag-System funktioniert
+                const tempEvent = new Event('input', { bubbles: true });
+                const humidityEvent = new Event('input', { bubbles: true });
+                
+                document.getElementById('temperature').dispatchEvent(tempEvent);
+                document.getElementById('humidity').dispatchEvent(humidityEvent);
+                
+                console.log('Wetterdaten übernommen - Temperatur und Luftfeuchtigkeit als bearbeitet markiert');
                 
                 updateStatus('success', '📥 Wetterdaten übernommen!');
             } else {
@@ -667,8 +673,11 @@
                 
                 setCurrentDateTime();
                 calculateDewpoint();
-                if (typeof updateDots === 'function') {
-                    updateDots();
+                
+                // WICHTIG: Interaktions-Flags zurücksetzen und alle Punkte rot machen
+                if (typeof window.resetInteractionFlags === 'function') {
+                    window.resetInteractionFlags();
+                    console.log('Alle Interaktions-Flags wurden zurückgesetzt - Punkte sind jetzt rot');
                 }
                 
                 loadMeasurements();
@@ -819,6 +828,15 @@
         function setupInputValidation() {
             console.log('Setting up input validation...');
             
+            // Flag-System um zu verfolgen, welche Felder vom Benutzer bearbeitet wurden
+            const userInteracted = {
+                temperature: false,
+                humidity: false,
+                location: false,
+                messort: false,
+                dehumidifierTime: false
+            };
+            
             const inputMapping = [
                 { inputId: 'temperature', dotId: 'dot1' },
                 { inputId: 'humidity', dotId: 'dot2' },
@@ -851,6 +869,12 @@
                 const input = document.getElementById(inputId);
                 if (!input) {
                     console.error(`Input ${inputId} nicht gefunden`);
+                    return false;
+                }
+                
+                // Wenn der Benutzer dieses Feld noch nicht bearbeitet hat, ist es ungültig
+                if (!userInteracted[inputId]) {
+                    console.log(`${inputId}: Benutzer hat noch nicht interagiert -> rot`);
                     return false;
                 }
                 
@@ -895,6 +919,21 @@
                 });
             }
             
+            // Funktion zum Markieren eines Feldes als "vom Benutzer bearbeitet"
+            function markAsInteracted(inputId) {
+                console.log(`Markiere ${inputId} als bearbeitet`);
+                userInteracted[inputId] = true;
+            }
+            
+            // Funktion zum Zurücksetzen aller Interaktions-Flags (für Formular-Reset)
+            function resetInteractionFlags() {
+                console.log('Setze alle Interaktions-Flags zurück');
+                Object.keys(userInteracted).forEach(key => {
+                    userInteracted[key] = false;
+                });
+                updateAllDots(); // Alle Punkte wieder rot machen
+            }
+            
             // Event-Listener hinzufügen
             inputMapping.forEach(mapping => {
                 const input = document.getElementById(mapping.inputId);
@@ -909,10 +948,12 @@
                 if (mapping.inputId === 'temperature' || mapping.inputId === 'humidity' || mapping.inputId === 'dehumidifierTime') {
                     input.addEventListener('input', function() {
                         console.log(`Input Event für ${mapping.inputId}, neuer Wert: ${this.value}`);
-                        setTimeout(() => updateSingleDot(mapping), 10); // Kurze Verzögerung
+                        markAsInteracted(mapping.inputId);
+                        setTimeout(() => updateSingleDot(mapping), 10);
                     });
                     input.addEventListener('change', function() {
                         console.log(`Change Event für ${mapping.inputId}, neuer Wert: ${this.value}`);
+                        markAsInteracted(mapping.inputId);
                         setTimeout(() => updateSingleDot(mapping), 10);
                     });
                 } 
@@ -920,18 +961,20 @@
                 else {
                     input.addEventListener('change', function() {
                         console.log(`Change Event für ${mapping.inputId}, neuer Wert: ${this.value}`);
+                        markAsInteracted(mapping.inputId);
                         setTimeout(() => updateSingleDot(mapping), 10);
                     });
                 }
             });
             
-            // Globale Funktion für updateDots
+            // Globale Funktionen verfügbar machen
             window.updateDots = updateAllDots;
+            window.resetInteractionFlags = resetInteractionFlags;
             
-            // Initiale Aktualisierung mit längerer Verzögerung
+            // Initiale Aktualisierung - ALLE PUNKTE SOLLEN ROT SEIN
             setTimeout(() => {
-                console.log('Führe initiale Punkt-Aktualisierung durch...');
-                updateAllDots();
+                console.log('Führe initiale Punkt-Aktualisierung durch - alle Punkte rot');
+                updateAllDots(); // Da userInteracted alle false sind, werden alle Punkte rot
             }, 1000);
             
             console.log('Input validation setup abgeschlossen');
