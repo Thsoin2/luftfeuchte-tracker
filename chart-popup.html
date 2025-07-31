@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>📊 Luftfeuchte Statistiken</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            margin: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+        }
+        .chart-container { 
+            background: rgba(255,255,255,0.95); 
+            border-radius: 15px; 
+            padding: 20px; 
+            margin: 20px 0; 
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1); 
+        }
+        .chart-container h3 { 
+            color: #333; 
+            text-align: center; 
+            margin-bottom: 20px; 
+        }
+        canvas { 
+            max-height: 400px; 
+        }
+        .loading { 
+            text-align: center; 
+            padding: 40px; 
+            font-size: 18px; 
+        }
+        .controls { 
+            background: rgba(255,255,255,0.2); 
+            padding: 15px; 
+            border-radius: 10px; 
+            margin-bottom: 20px; 
+            text-align: center; 
+        }
+        .controls select, .controls button { 
+            margin: 0 10px; 
+            padding: 8px 15px; 
+            border: none; 
+            border-radius: 5px; 
+            font-size: 14px; 
+        }
+        .controls button { 
+            background: #4CAF50; 
+            color: white; 
+            cursor: pointer; 
+        }
+        .controls button:hover { 
+            background: #45a049; 
+        }
+        .error { 
+            color: #ff6b6b; 
+            text-align: center; 
+            padding: 20px; 
+        }
+    </style>
+</head>
+<body>
+    <h1>📊 Luftfeuchte Tracker - Diagramme</h1>
+    
+    <div class="controls">
+        <label>Zeitraum:</label>
+        <select id="timeRange">
+            <option value="7">Letzte 7 Tage</option>
+            <option value="30" selected>Letzte 30 Tage</option>
+            <option value="90">Letzte 90 Tage</option>
+            <option value="all">Alle Daten</option>
+        </select>
+        
+        <label>Standort:</label>
+        <select id="locationFilter">
+            <option value="all">Alle Standorte</option>
+        </select>
+        
+        <button onclick="updateCharts()">🔄 Aktualisieren</button>
+    </div>
+    
+    <div id="loading" class="loading">⏳ Lade Diagramme...</div>
+    
+    <div class="chart-container" id="tempHumidityChart" style="display:none;">
+        <h3>🌡️ Temperatur & Luftfeuchtigkeit Verlauf</h3>
+        <canvas id="tempHumidityCanvas"></canvas>
+    </div>
+    <div class="chart-container" id="dewpointChart" style="display:none;">
+        <h3>💧 Taupunkt Verlauf</h3>
+        <canvas id="dewpointCanvas"></canvas>
+    </div>
+    <div class="chart-container" id="locationChart" style="display:none;">
+        <h3>📍 Durchschnittswerte pro Standort</h3>
+        <canvas id="locationCanvas"></canvas>
+    </div>
+    
+    <script>
+        let chartData = [];
+        let tempHumidityChart, dewpointChart, locationChart;
+        
+        // Daten vom Hauptfenster empfangen
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'chartData') {
+                chartData = event.data.data;
+                loadChartData();
+            }
+        });
+        
+        function loadChartData() {
+            try {
+                console.log('Chart-Daten geladen:', chartData.length, 'Einträge');
+                populateLocationFilter();
+                updateCharts();
+            } catch (error) {
+                console.error('Fehler beim Laden der Chart-Daten:', error);
+                document.getElementById('loading').innerHTML = '❌ Fehler beim Laden der Daten: ' + error.message;
+            }
+        }
+        
+        function populateLocationFilter() {
+            const locations = [...new Set(chartData.map(item => item.messstandort))];
+            const select = document.getElementById('locationFilter');
+            select.innerHTML = '<option value="all">Alle Standorte</option>';
+            locations.forEach(location => {
+                const option = document.createElement('option');
+                option.value = location;
+                option.textContent = location;
+                select.appendChild(option);
+            });
+        }
+        
+        function updateCharts() {
+            const timeRange = document.getElementById('timeRange').value;
+            const locationFilter = document.getElementById('locationFilter').value;
+            
+            let filteredData = chartData;
+            
+            if (timeRange !== 'all') {
+                const days = parseInt(timeRange);
+                const cutoffDate = new Date();
+                cutoffDate.setDate(cutoffDate.getDate() - days);
+                
+                filteredData = filteredData.filter(item => {
+                    // Parse date using the same robust method as in chart functions
+                    let date;
+                    if (item.timestamp) {
+                        // If timestamp is a Firestore timestamp object
+                        if (item.timestamp.toDate) {
+                            date = item.timestamp.toDate();
+                        } else if (item.timestamp.seconds) {
+                            // Firestore timestamp with seconds
+                            date = new Date(item.timestamp.seconds * 1000);
+                        } else {
+                            // Try parsing as regular timestamp
+                            date = new Date(item.timestamp);
+                        }
+                    } else if (item.date && item.time) {
+                        // Fallback to date + time combination
+                        date = new Date(`${item.date}T${item.time}`);
+                    } else {
+                        return false; // No valid date information
+                    }
+                    
+                    // Check if date is valid
+                    if (isNaN(date.getTime())) {
+                        console.warn('Invalid date for filtering:', item);
+                        return false;
+                    }
+                    
+                    return date >= cutoffDate;
+                });
+            }
+            
+            if (locationFilter !== 'all') {
+                filteredData = filteredData.filter(item => item.messstandort === locationFilter);
+            }
+            
+            createTempHumidityChart(filteredData);
+            createDewpointChart(filteredData);
+            createLocationChart(chartData);
+            
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('tempHumidityChart').style.display = 'block';
+            document.getElementById('dewpointChart').style.display = 'block';
+            document.getElementById('locationChart').style.display = 'block';
+        }
+        
+        function createTempHumidityChart(data) {
+            const ctx = document.getElementById('tempHumidityCanvas').getContext('2d');
+            if (tempHumidityChart) tempHumidityChart.destroy();
+            
+            const labels = data.map(item => {
+                // Try different date parsing methods
+                let date;
+                if (item.timestamp) {
+                    // If timestamp is a Firestore timestamp object
+                    if (item.timestamp.toDate) {
+                        date = item.timestamp.toDate();
+                    } else if (item.timestamp.seconds) {
+                        // Firestore timestamp with seconds
+                        date = new Date(item.timestamp.seconds * 1000);
+                    } else {
+                        // Try parsing as regular timestamp
+                        date = new Date(item.timestamp);
+                    }
+                } else if (item.date && item.time) {
+                    // Fallback to date + time combination
+                    date = new Date(`${item.date}T${item.time}`);
+                } else {
+                    date = new Date();
+                }
+                
+                // Check if date is valid
+                if (isNaN(date.getTime())) {
+                    console.warn('Invalid date for item:', item);
+                    return item.date || 'Invalid Date';
+                }
+                
+                return date.toLocaleDateString('de-DE');
+            });
+            
+            tempHumidityChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '🏠 Innen Temperatur (°C)',
+                        data: data.map(item => parseFloat(item.temperatur)),
+                        borderColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        yAxisID: 'y'
+                    }, {
+                        label: '🏠 Innen Luftfeuchtigkeit (%)',
+                        data: data.map(item => parseFloat(item.luftfeuchtigkeit)),
+                        borderColor: 'rgb(54, 162, 235)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        yAxisID: 'y1'
+                    }, {
+                        label: '🌤️ Azmoos Temperatur (°C)',
+                        data: data.map(item => item.azTemp ? parseFloat(item.azTemp) : null),
+                        borderColor: 'rgb(255, 159, 64)',
+                        backgroundColor: 'rgba(255, 159, 64, 0.2)',
+                        borderDash: [5, 5],
+                        yAxisID: 'y'
+                    }, {
+                        label: '🌤️ Azmoos Luftfeuchtigkeit (%)',
+                        data: data.map(item => item.azHumidity ? parseFloat(item.azHumidity) : null),
+                        borderColor: 'rgb(153, 102, 255)',
+                        backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                        borderDash: [5, 5],
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { type: 'linear', display: true, position: 'left' },
+                        y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false } }
+                    }
+                }
+            });
+        }
+        
+        function createDewpointChart(data) {
+            const ctx = document.getElementById('dewpointCanvas').getContext('2d');
+            if (dewpointChart) dewpointChart.destroy();
+            
+            const labels = data.map(item => {
+                // Try different date parsing methods
+                let date;
+                if (item.timestamp) {
+                    // If timestamp is a Firestore timestamp object
+                    if (item.timestamp.toDate) {
+                        date = item.timestamp.toDate();
+                    } else if (item.timestamp.seconds) {
+                        // Firestore timestamp with seconds
+                        date = new Date(item.timestamp.seconds * 1000);
+                    } else {
+                        // Try parsing as regular timestamp
+                        date = new Date(item.timestamp);
+                    }
+                } else if (item.date && item.time) {
+                    // Fallback to date + time combination
+                    date = new Date(`${item.date}T${item.time}`);
+                } else {
+                    date = new Date();
+                }
+                
+                // Check if date is valid
+                if (isNaN(date.getTime())) {
+                    console.warn('Invalid date for item:', item);
+                    return item.date || 'Invalid Date';
+                }
+                
+                return date.toLocaleDateString('de-DE');
+            });
+            
+            dewpointChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '🏠 Innen Taupunkt (°C)',
+                        data: data.map(item => parseFloat(item.taupunkt)),
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)'
+                    }, {
+                        label: '🌤️ Azmoos Taupunkt (°C)',
+                        data: data.map(item => item.azDewpoint ? parseFloat(item.azDewpoint) : null),
+                        borderColor: 'rgb(255, 159, 64)',
+                        backgroundColor: 'rgba(255, 159, 64, 0.2)',
+                        borderDash: [5, 5]
+                    }]
+                },
+                options: { responsive: true }
+            });
+        }
+        
+        function createLocationChart(data) {
+            const ctx = document.getElementById('locationCanvas').getContext('2d');
+            if (locationChart) locationChart.destroy();
+            
+            const locationStats = {};
+            data.forEach(item => {
+                if (!locationStats[item.messstandort]) {
+                    locationStats[item.messstandort] = { temp: [], humidity: [] };
+                }
+                locationStats[item.messstandort].temp.push(parseFloat(item.temperatur));
+                locationStats[item.messstandort].humidity.push(parseFloat(item.luftfeuchtigkeit));
+            });
+            
+            // Add Azmoos data as a separate location
+            const azmoosTempData = data.filter(item => item.azTemp).map(item => parseFloat(item.azTemp));
+            const azmoosHumidityData = data.filter(item => item.azHumidity).map(item => parseFloat(item.azHumidity));
+            
+            if (azmoosTempData.length > 0 && azmoosHumidityData.length > 0) {
+                locationStats['🌤️ Azmoos (Außen)'] = {
+                    temp: azmoosTempData,
+                    humidity: azmoosHumidityData
+                };
+            }
+            
+            const locations = Object.keys(locationStats);
+            const avgTemp = locations.map(location => {
+                const temp = locationStats[location].temp;
+                return temp.reduce((a, b) => a + b, 0) / temp.length;
+            });
+            const avgHumidity = locations.map(location => {
+                const humidity = locationStats[location].humidity;
+                return humidity.reduce((a, b) => a + b, 0) / humidity.length;
+            });
+            
+            locationChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: locations,
+                    datasets: [{
+                        label: 'Ø Temperatur (°C)',
+                        data: avgTemp,
+                        backgroundColor: 'rgba(255, 99, 132, 0.8)'
+                    }, {
+                        label: 'Ø Luftfeuchtigkeit (%)',
+                        data: avgHumidity,
+                        backgroundColor: 'rgba(54, 162, 235, 0.8)'
+                    }]
+                },
+                options: { responsive: true }
+            });
+        }
+        
+        // Beim Laden der Seite nach Daten fragen
+        window.onload = function() {
+            if (window.opener) {
+                window.opener.postMessage({type: 'requestChartData'}, '*');
+            }
+        };
+    </script>
+</body>
+</html>
