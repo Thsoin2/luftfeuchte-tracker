@@ -371,7 +371,16 @@
     </div>
 
     <div class="container">
-        <h2 id="messungenHeading" onclick="openChartWindow()" style="cursor: pointer; transition: color 0.3s; user-select: none; color: white;" onmouseover="this.style.color='#667eea'" onmouseout="this.style.color='white'">📊 Messungen</h2>
+        <h2 id="messungenHeading" onclick="openChartWindow()" style="cursor: pointer; transition: color 0.3s; user-select: none; color: white; text-shadow: 0 0 5px rgba(0,0,0,0.5);">📊 Messungen</h2>
+        <script>
+            // Ensure heading always returns to white color
+            document.getElementById('messungenHeading').addEventListener('click', function() {
+                // Set timeout to reset color after click
+                setTimeout(function() {
+                    document.getElementById('messungenHeading').style.color = 'white';
+                }, 100);
+            });
+        </script>
         <div id="dataStats">
             <strong id="entryCount">0</strong> Einträge | 
             Ø Luftfeuchtigkeit: <strong id="avgHumidity">-</strong>%
