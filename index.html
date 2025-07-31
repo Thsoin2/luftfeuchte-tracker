@@ -535,6 +535,17 @@
                 document.getElementById('azDewpoint').textContent = dewpoint;
                 document.getElementById('weatherDescription').textContent = weatherDescription;
                 
+                // Wetterbeschreibung automatisch in Notizen schreiben
+                const notesField = document.getElementById('notes');
+                const currentDate = new Date();
+                const timeString = currentDate.toLocaleTimeString('de-DE', {hour: '2-digit', minute:'2-digit'});
+                
+                if (notesField.value.trim() === '') {
+                    notesField.value = `${timeString} - ${weatherDescription}`;
+                } else {
+                    notesField.value = `${timeString} - ${weatherDescription}\n` + notesField.value;
+                }
+                
                 updateStatus('success', '✅ Wetterdaten erfolgreich geladen!');
                 
             } catch (error) {
@@ -603,16 +614,6 @@
                 const humiditySlider = document.getElementById('humidity');
                 humiditySlider.value = weatherData.humidity;
                 document.getElementById('humidityValue').textContent = weatherData.humidity;
-                
-                const notesField = document.getElementById('notes');
-                const currentDate = new Date();
-                const timeString = currentDate.toLocaleTimeString('de-DE', {hour: '2-digit', minute:'2-digit'});
-                
-                if (notesField.value.trim() === '') {
-                    notesField.value = `${timeString} - ${weatherData.weatherDescription}`;
-                } else {
-                    notesField.value = `${timeString} - ${weatherData.weatherDescription}\n` + notesField.value;
-                }
                 
                 calculateDewpoint();
                 
