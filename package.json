@@ -1,0 +1,24 @@
+{
+  "name": "luftfeuchte",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "http-server -p 5173"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Thsoin2/luftfeuchte-tracker.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Thsoin2/luftfeuchte-tracker/issues"
+  },
+  "homepage": "https://github.com/Thsoin2/luftfeuchte-tracker#readme",
+  "description": "",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}

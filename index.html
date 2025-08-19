@@ -250,9 +250,76 @@
             background: #ff4444;
         }
         .status-dot.connected { background: #44ff44; }
+        
+        /* Login Dialog Styles */
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .login-container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            color: #333;
+        }
+        
+        .login-container h2 {
+            margin-top: 0;
+            color: #764ba2;
+            text-align: center;
+        }
+        
+        .login-form input {
+            margin-bottom: 15px;
+        }
+        
+        .login-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        .login-error {
+            color: #ff5555;
+            text-align: center;
+            margin-top: 15px;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
+    <!-- Login Dialog -->
+    <div id="loginOverlay" class="login-overlay">
+        <div class="login-container">
+            <h2>💧 Luftfeuchte Tracker</h2>
+            <p style="text-align: center;">Bitte melden Sie sich an, um fortzufahren</p>
+            <div class="login-form">
+                <div class="form-group">
+                    <label>E-Mail</label>
+                    <input type="email" id="loginEmail" placeholder="E-Mail Adresse">
+                </div>
+                <div class="form-group">
+                    <label>Passwort</label>
+                    <input type="password" id="loginPassword" placeholder="Passwort">
+                </div>
+                <button class="login-button" onclick="login()">Anmelden</button>
+                <div id="loginError" class="login-error"></div>
+            </div>
+        </div>
+    </div>
+    
     <div class="container">
         <h1 style="text-align: center; margin-bottom: 0;">💧 Luftfeuchte</h1>
         <h1 style="text-align: center; margin-top: 0;">Tracker</h1>
@@ -260,6 +327,7 @@
         <div class="firebase-status">
             <div class="status-dot" id="statusDot"></div>
             <span id="firebaseStatus">Verbindung wird hergestellt...</span>
+            <button onclick="logout()" style="margin-left: auto; background-color: #ff7f7f; padding: 5px 10px; font-size: 12px;">Abmelden</button>
         </div>
         
         <div class="status info" id="statusMessage">
@@ -417,6 +485,7 @@
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
     <script>
         // Firebase Konfiguration - DIESE WERTE MUSST DU ANPASSEN!
@@ -430,24 +499,81 @@
         };
 
         let db;
+        let auth;
         let weatherData = {};
         let measurements = [];
+        let currentUser = null;
 
         // Firebase initialisieren
         async function initFirebase() {
             try {
                 firebase.initializeApp(firebaseConfig);
                 db = firebase.firestore();
-                updateStatus('success', '✅ Firebase verbunden!');
-                document.getElementById('statusDot').classList.add('connected');
-                document.getElementById('firebaseStatus').textContent = 'Firebase verbunden';
+                auth = firebase.auth();
+                
+                // Auth state change listener
+                auth.onAuthStateChanged(function(user) {
+                    if (user) {
+                        // User is signed in
+                        currentUser = user;
+                        console.log('Benutzer angemeldet:', user.email);
+                        document.getElementById('loginOverlay').style.display = 'none';
+                        updateStatus('success', '✅ Angemeldet als ' + user.email);
+                        document.getElementById('statusDot').classList.add('connected');
+                        document.getElementById('firebaseStatus').textContent = 'Angemeldet als ' + user.email;
+                        loadMeasurements();
+                    } else {
+                        // User is signed out
+                        currentUser = null;
+                        console.log('Benutzer nicht angemeldet');
+                        document.getElementById('loginOverlay').style.display = 'flex';
+                        document.getElementById('statusDot').classList.remove('connected');
+                        document.getElementById('firebaseStatus').textContent = 'Nicht angemeldet';
+                    }
+                });
+                
                 console.log('Firebase erfolgreich initialisiert');
-                // loadMeasurements() wird in initApp() aufgerufen
             } catch (error) {
                 console.error('Firebase Fehler:', error);
                 updateStatus('error', '❌ Firebase Verbindung fehlgeschlagen: ' + error.message);
                 document.getElementById('firebaseStatus').textContent = 'Verbindung fehlgeschlagen';
                 throw error; // Fehler weiterwerfen
+            }
+        }
+        
+        // Login-Funktion
+        async function login() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const errorElement = document.getElementById('loginError');
+            
+            if (!email || !password) {
+                errorElement.textContent = 'Bitte E-Mail und Passwort eingeben';
+                return;
+            }
+            
+            try {
+                errorElement.textContent = '';
+                await auth.signInWithEmailAndPassword(email, password);
+                // Der onAuthStateChanged Handler kümmert sich um den Rest
+            } catch (error) {
+                console.error('Login Fehler:', error);
+                
+                // Benutzerfreundliche Fehlermeldungen
+                switch(error.code) {
+                    case 'auth/invalid-email':
+                        errorElement.textContent = 'Ungültige E-Mail-Adresse';
+                        break;
+                    case 'auth/user-disabled':
+                        errorElement.textContent = 'Dieser Account wurde deaktiviert';
+                        break;
+                    case 'auth/user-not-found':
+                    case 'auth/wrong-password':
+                        errorElement.textContent = 'Falsche E-Mail oder Passwort';
+                        break;
+                    default:
+                        errorElement.textContent = 'Anmeldefehler: ' + error.message;
+                }
             }
         }
 
@@ -649,6 +775,11 @@
 
         // Daten in Firebase speichern
         async function saveData() {
+            // Prüfen, ob Benutzer angemeldet ist
+            if (!currentUser) {
+                updateStatus('error', '❌ Sie müssen angemeldet sein, um Daten zu speichern!');
+                return;
+            }
             const data = {
                 date: document.getElementById('date').value,
                 time: document.getElementById('time').value,
@@ -703,7 +834,7 @@
 
         // Messungen aus Firebase laden
         async function loadMeasurements() {
-            if (!db) return;
+            if (!db || !currentUser) return;
             
             try {
                 const snapshot = await db.collection('measurements').orderBy('timestamp', 'desc').get();
@@ -1144,26 +1275,43 @@
             
             // Popup-Fenster mit externer HTML-Datei öffnen
             chartWindow.location.href = popupUrl;
-            
-            // Event-Listener für Nachrichten vom Popup
-            window.addEventListener('message', function(event) {
-                if (event.data && event.data.type === 'requestChartData') {
-                    // Daten an das Popup senden
-                    event.source.postMessage({
-                        type: 'chartData',
-                        data: chartData
-                    }, '*');
-                }
-            });
         }
         
-        // Warten bis DOM geladen ist, dann App initialisieren
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initApp);
-        } else {
-            // DOM bereits geladen
-            initApp();
+        // Logout-Funktion
+        function logout() {
+            if (confirm('Möchten Sie sich wirklich abmelden?')) {
+                auth.signOut().then(() => {
+                    console.log('Benutzer abgemeldet');
+                }).catch(error => {
+                    console.error('Fehler beim Abmelden:', error);
+                });
+            }
         }
+            
+        // Beim Laden der Seite nach Daten fragen
+        window.onload = function() {
+            if (window.opener) {
+                window.opener.postMessage({type: 'requestChartData'}, '*');
+            }
+            
+            // Tastaturereignis für Login-Formular hinzufügen
+            document.getElementById('loginPassword').addEventListener('keyup', function(event) {
+                if (event.key === 'Enter') {
+                    login();
+                }
+            });
+        };
+            
+        // Event-Listener für Nachrichten vom Popup
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'requestChartData') {
+                // Daten an das Popup senden
+                event.source.postMessage({
+                    type: 'chartData',
+                    data: chartData
+                }, '*');
+            }
+        });
     </script>
 </body>
 </html>
