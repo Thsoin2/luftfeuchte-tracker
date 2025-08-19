@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <title>📊 Luftfeuchte Statistiken</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Firebase SDK (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <style>
         body { 
             font-family: 'Segoe UI', sans-serif; 
@@ -104,7 +108,7 @@
         <button onclick="updateCharts()">🔄 Aktualisieren</button>
     </div>
     
-    <div id="loading" class="loading">⏳ Lade Diagramme...</div>
+    <div id="loading" class="loading">⏳ Daten werden geladen...</div>
     
     <div class="chart-container" id="tempHumidityChart" style="display:none;">
         <h3>🌡️ Temperatur & Luftfeuchtigkeit Verlauf</h3>
@@ -120,6 +124,21 @@
     </div>
     
     <script>
+        // Firebase initialisieren (für direkten Datenabruf im Popup)
+        const firebaseConfig = {
+            apiKey: "AIzaSyDoaelppJWayS-DXkI7SRqXRcj_qJj9Hig",
+            authDomain: "luftfeuchte-tracker.firebaseapp.com",
+            projectId: "luftfeuchte-tracker",
+            storageBucket: "luftfeuchte-tracker.firebasestorage.app",
+            messagingSenderId: "341950652894",
+            appId: "1:341950652894:web:8563788a8c188be322fd4f"
+        };
+        if (!firebase.apps || firebase.apps.length === 0) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
         let chartData = [];
         let tempHumidityChart, dewpointChart, locationChart;
         
@@ -130,6 +149,34 @@
                 loadChartData();
             }
         });
+        
+        // Direkter Fallback: Daten selbst aus Firestore laden
+        async function fetchDataFromFirestore() {
+            try {
+                const snapshot = await db.collection('measurements').orderBy('timestamp', 'asc').get();
+                chartData = [];
+                snapshot.forEach(doc => {
+                    const d = doc.data();
+                    chartData.push({
+                        id: doc.id,
+                        date: d.date,
+                        time: d.time,
+                        timestamp: d.timestamp,
+                        temperatur: parseFloat(d.temperature),
+                        luftfeuchtigkeit: parseFloat(d.humidity),
+                        taupunkt: parseFloat(d.dewpoint),
+                        messstandort: d.location || 'Unbekannt',
+                        azTemp: d.azTemp,
+                        azHumidity: d.azHumidity,
+                        azDewpoint: d.azDewpoint
+                    });
+                });
+                loadChartData();
+            } catch (error) {
+                console.error('Fehler beim direkten Laden der Daten im Popup:', error);
+                document.getElementById('loading').innerHTML = '❌ Fehler beim Laden der Daten: ' + error.message;
+            }
+        }
         
         function loadChartData() {
             try {
@@ -393,11 +440,31 @@
             });
         }
         
-        // Beim Laden der Seite nach Daten fragen
+        // Beim Laden der Seite nach Daten fragen + Fallback direkt aus Firestore
         window.onload = function() {
-            if (window.opener) {
-                window.opener.postMessage({type: 'requestChartData'}, '*');
+            try {
+                if (window.opener) {
+                    window.opener.postMessage({type: 'requestChartData'}, '*');
+                }
+            } catch(e) {
+                console.warn('Konnte opener nicht benachrichtigen:', e);
             }
+            // Fallback: wenn nach kurzer Zeit keine Daten, direkt aus Firestore laden
+            setTimeout(() => {
+                if ((!chartData || chartData.length === 0) && auth) {
+                    if (auth.currentUser) {
+                        fetchDataFromFirestore();
+                    } else {
+                        auth.onAuthStateChanged(user => {
+                            if (user) {
+                                fetchDataFromFirestore();
+                            } else {
+                                document.getElementById('loading').textContent = 'Bitte in der Hauptseite anmelden und Popup neu öffnen.';
+                            }
+                        });
+                    }
+                }
+            }, 1200);
         };
     </script>
 </body>

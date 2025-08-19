@@ -1236,9 +1236,10 @@
         }
         
         // Chart Popup Funktionalität
+        let chartData = [];
         async function openChartWindow() {
             // Erst Daten aus Firebase laden
-            let chartData = [];
+            chartData = [];
             try {
                 const snapshot = await db.collection('measurements').orderBy('timestamp', 'asc').get();
                 snapshot.forEach(doc => {
@@ -1275,6 +1276,15 @@
             
             // Popup-Fenster mit externer HTML-Datei öffnen
             chartWindow.location.href = popupUrl;
+            
+            // Proaktiv Daten an das Popup senden (wichtig für Mobile, wo window.opener ggf. null ist)
+            setTimeout(() => {
+                try {
+                    chartWindow.postMessage({ type: 'chartData', data: chartData }, '*');
+                } catch (e) {
+                    console.warn('Konnte Daten nicht an Popup senden:', e);
+                }
+            }, 800);
         }
         
         // Logout-Funktion
